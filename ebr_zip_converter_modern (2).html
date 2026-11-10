@@ -1,0 +1,2737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EBR AI Intelligent Raw Data Consolidation & Master Converter Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --ink:#1a1d29;
+    --ink-soft:#6b7280;
+    --paper:#f4f6fc;
+    --panel:#ffffff;
+    --line:#e2e6f0;
+    --line-soft:#eef2f9;
+
+    --accent:#4f46e5;
+    --accent-2:#7c3aed;
+    --accent-dark:#3730a3;
+    --accent-soft:#eef2ff;
+
+    --ai:#8b5cf6;
+    --ai-soft:#f3e8ff;
+    --ai-dark:#6d28d9;
+
+    --brass:#f59e0b;
+    --brass-soft:#fef3d9;
+
+    --success:#10b981;
+    --success-dark:#047857;
+    --success-soft:#d1fae5;
+
+    --warn:#f59e0b;
+    --warn-dark:#b45309;
+    --warn-soft:#fef3c7;
+
+    --err:#ef4444;
+    --err-dark:#b91c1c;
+    --err-soft:#fee2e2;
+
+    --info:#0284c7;
+    --info-soft:#e0f2fe;
+
+    --mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    --shadow-sm: 0 1px 3px rgba(30,20,80,.05), 0 1px 2px rgba(30,20,80,.04);
+    --shadow-md: 0 8px 24px rgba(60,40,150,.08), 0 2px 6px rgba(60,40,150,.04);
+    --shadow-lg: 0 18px 45px rgba(60,40,150,.13), 0 4px 12px rgba(60,40,150,.06);
+    --shadow-glow: 0 0 0 4px rgba(99,102,241,.18);
+
+    --r: 12px;
+    --r-sm: 8px;
+    --r-lg: 18px;
+  }
+  *{ box-sizing:border-box; }
+  ::selection{ background:var(--accent-soft); color:var(--accent-dark); }
+  ::-webkit-scrollbar{ width:9px; height:9px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background:#c7cdec; border-radius:20px; border:2px solid transparent; background-clip:padding-box; }
+  ::-webkit-scrollbar-thumb:hover{ background:#a5aee0; background-clip:padding-box; }
+
+  body{
+    margin:0; color:var(--ink);
+    font-family: var(--sans);
+    line-height:1.55; -webkit-font-smoothing:antialiased;
+    background:
+      radial-gradient(1100px 480px at 6% -6%, rgba(99,102,241,.12), transparent 60%),
+      radial-gradient(900px 460px at 100% 0%, rgba(236,72,153,.08), transparent 55%),
+      radial-gradient(800px 500px at 50% 110%, rgba(16,185,129,.07), transparent 55%),
+      var(--paper);
+    background-attachment: fixed, fixed, fixed, fixed;
+  }
+  a{ color:var(--accent-dark); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  .wrap{ max-width:1280px; margin:0 auto; padding:28px 22px 80px; }
+
+  header.page{
+    position:relative;
+    padding:28px 32px; margin-bottom:24px;
+    background:linear-gradient(135deg, #3730a3 0%, #4f46e5 40%, #7c3aed 75%, #9333ea 100%);
+    color:#f5f3ff;
+    display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap;
+    box-shadow:var(--shadow-lg);
+    border-radius:var(--r-lg);
+    overflow:hidden;
+  }
+  header.page::before{
+    content:""; position:absolute; inset:0;
+    background-image: radial-gradient(circle at 88% 18%, rgba(255,255,255,.20), transparent 42%),
+                       radial-gradient(circle at 10% 120%, rgba(255,255,255,.10), transparent 45%);
+    pointer-events:none;
+  }
+  header.page::after{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:6px;
+    background:linear-gradient(180deg, #facc15, #f97316);
+  }
+  header.page h1{
+    position:relative; z-index:1;
+    font-size:25px; margin:0 0 8px; font-weight:800; letter-spacing:-.2px; color:#fff;
+    display:flex; align-items:center; gap:10px;
+  }
+  header.page h1 .ai-badge{
+    font-size:12px; font-weight:700; background:rgba(255,255,255,.25);
+    border:1px solid rgba(255,255,255,.4); padding:3px 10px; border-radius:14px;
+    backdrop-filter:blur(4px); font-family:var(--mono); text-transform:uppercase; letter-spacing:.05em;
+  }
+  header.page p{ position:relative; z-index:1; margin:0; font-size:13.5px; color:#e0e7ff; max-width:660px; font-family:var(--sans); line-height:1.6; }
+  .pipeline-tag{
+    position:relative; z-index:1;
+    font-family:var(--mono); font-size:11.5px; color:#fff; text-align:right; font-weight:500;
+    border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.14);
+    backdrop-filter:blur(6px);
+    padding:10px 14px; line-height:1.65; border-radius:var(--r-sm);
+  }
+
+  /* Metric KPI Cards */
+  .kpi-grid{
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap:16px; margin-bottom:24px;
+  }
+  .kpi-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
+    padding:16px 20px; box-shadow:var(--shadow-sm); position:relative; overflow:hidden;
+    transition:transform .18s, box-shadow .18s;
+  }
+  .kpi-card:hover{ transform:translateY(-2px); box-shadow:var(--shadow-md); }
+  .kpi-label{ font-size:12px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; }
+  .kpi-val{ font-size:26px; font-weight:800; color:var(--ink); margin-top:4px; font-family:var(--mono); }
+  .kpi-sub{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .kpi-card.kpi-accent{ border-left:4px solid var(--accent); }
+  .kpi-card.kpi-success{ border-left:4px solid var(--success); }
+  .kpi-card.kpi-warn{ border-left:4px solid var(--warn); }
+  .kpi-card.kpi-info{ border-left:4px solid var(--info); }
+  .kpi-card.kpi-ai{ border-left:4px solid var(--ai); }
+
+  /* AI Intelligent Conversion Funnel Banner */
+  .ai-funnel-card{
+    background:linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #4338ca 100%);
+    color:#fff; border-radius:var(--r); padding:20px 24px; margin-bottom:26px;
+    box-shadow:var(--shadow-md); border:1px solid rgba(255,255,255,.15);
+  }
+  .ai-funnel-header{
+    display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+    margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,.15); padding-bottom:12px;
+  }
+  .ai-funnel-title{ font-size:15px; font-weight:800; display:flex; align-items:center; gap:8px; }
+  .ai-funnel-steps{
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap:16px; align-items:center;
+  }
+  .ai-step-box{
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+    border-radius:var(--r-sm); padding:14px 16px; text-align:center;
+    backdrop-filter:blur(4px);
+  }
+  .ai-step-name{ font-size:12px; color:#c7d2fe; text-transform:uppercase; font-weight:700; letter-spacing:.04em; }
+  .ai-step-num{ font-size:24px; font-weight:800; font-family:var(--mono); margin:4px 0 2px; }
+  .ai-step-rate{ font-size:11.5px; font-weight:700; color:#a7f3d0; }
+  .ai-insights-pills{ display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  .ai-pill{
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+    padding:5px 12px; border-radius:16px; font-size:12px; font-family:var(--sans);
+  }
+
+  section{ margin-bottom:26px; }
+  h2.section-title{
+    display:flex; align-items:center; gap:12px;
+    font-size:15px; font-family:var(--sans); font-weight:700; color:var(--ink);
+    letter-spacing:.1px;
+    margin:0 0 14px; padding-bottom:12px; border-bottom:2px solid var(--line);
+  }
+  h2.section-title .step-num{
+    flex:none; display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; background:var(--ink); color:#fff;
+    font-family:var(--mono); font-size:12px; font-weight:600; border-radius:8px;
+    box-shadow:var(--shadow-sm);
+  }
+  .step-num.step-1{ background:linear-gradient(135deg,#3b82f6,#2563eb); }
+  .step-num.step-2{ background:linear-gradient(135deg,#8b5cf6,#6d28d9); }
+  .step-num.step-3{ background:linear-gradient(135deg,#d946ef,#a21caf); }
+  .step-num.step-4{ background:linear-gradient(135deg,#f472b6,#db2777); }
+  .step-num.step-5{ background:linear-gradient(135deg,#34d399,#059669); }
+  .step-num.step-6{ background:linear-gradient(135deg,#22d3ee,#0891b2); }
+  
+  h2.section-title.collapsible{ cursor:pointer; user-select:none; border-radius:6px; transition:color .15s; }
+  h2.section-title.collapsible:hover{ color:var(--accent-dark); }
+  h2.section-title.collapsible .chevron{
+    margin-left:auto; font-size:12px; color:var(--accent); transition:transform .18s ease;
+  }
+  h2.section-title.collapsible.open .chevron{ transform:rotate(90deg); }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:860px){ .grid2{ grid-template-columns:1fr; } }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--accent);
+    padding:20px 22px; border-radius:0 var(--r) var(--r) 0; box-shadow:var(--shadow-sm);
+    transition:box-shadow .2s ease, transform .2s ease;
+  }
+  .panel:hover{ box-shadow:var(--shadow-md); }
+
+  .dropzone{
+    border:2px dashed #b8c2f5; border-radius:var(--r); padding:38px 20px; text-align:center; cursor:pointer;
+    background:linear-gradient(180deg, #ffffff, #f7f9ff);
+    transition:border-color .18s, background .18s, box-shadow .18s, transform .12s;
+    font-family:var(--sans);
+  }
+  .dropzone:hover{ border-color:var(--accent); box-shadow:var(--shadow-glow); transform:translateY(-2px); }
+  .dropzone svg{ display:block; margin:0 auto 12px; color:var(--accent); }
+  .dropzone.drag{ border-color:var(--accent); border-style:solid; background:var(--accent-soft); box-shadow:var(--shadow-glow); }
+  .dropzone.drag svg{ color:var(--accent-dark); }
+  .dropzone strong{ display:block; font-size:15px; margin-bottom:5px; color:var(--ink); font-weight:700; }
+  .dropzone span{ font-size:12.5px; color:var(--ink-soft); }
+  .filename-pill{ display:inline-block; margin-top:12px; font-family:var(--mono); font-size:12px; font-weight:600; background:var(--accent-soft); color:var(--accent-dark); padding:6px 14px; border-radius:20px; border:1px solid #d0d7fb; }
+
+  table.map-table{ width:100%; border-collapse:collapse; font-family:var(--sans); font-size:13px; }
+  table.map-table th{ text-align:left; font-size:11.5px; color:var(--ink-soft); font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:8px 6px; border-bottom:2px solid var(--line); }
+  table.map-table td{ padding:6px; border-bottom:1px solid var(--line-soft); }
+  table.map-table tr:hover td{ background:#fafaff; }
+  table.map-table input, table.map-table select{ width:100%; border:1.5px solid var(--line); border-radius:var(--r-sm); padding:7px 10px; font-size:13px; font-family:var(--sans); background:#fdfdff; transition:border-color .15s, box-shadow .15s; }
+  table.map-table input:hover, table.map-table select:hover{ border-color:#a5aee0; }
+  table.map-table input:focus, table.map-table select:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); outline:none; }
+  .row-actions{ display:flex; gap:9px; margin-top:12px; font-family:var(--sans); flex-wrap:wrap; }
+
+  button{
+    font-family:var(--sans); font-size:13px; font-weight:600; cursor:pointer;
+    border:1px solid var(--ink); background:linear-gradient(135deg,#1e2238,#111322); color:#fff; padding:9px 18px; border-radius:var(--r-sm);
+    transition:background .15s, border-color .15s, opacity .15s, transform .08s, box-shadow .15s;
+    letter-spacing:.1px; display:inline-flex; align-items:center; gap:6px;
+  }
+  button:hover:not(:disabled){ transform:translateY(-1px); box-shadow:var(--shadow-md); }
+  button:active:not(:disabled){ transform:translateY(1px); box-shadow:none; }
+  button.secondary{ background:#fff; color:var(--ink); border:1.5px solid var(--line); }
+  button.secondary:hover:not(:disabled){ background:var(--ink); color:#fff; border-color:var(--ink); }
+  button.small{ padding:5px 12px; font-size:12px; font-weight:600; border-radius:7px; }
+  button:disabled{ opacity:.42; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+  button.accent{ background:linear-gradient(135deg, var(--accent), var(--accent-2)); border-color:var(--accent); box-shadow:0 4px 14px rgba(79,70,229,.30); }
+  button.accent:hover:not(:disabled){ background:linear-gradient(135deg, var(--accent-dark), var(--accent)); border-color:var(--accent-dark); box-shadow:0 8px 20px rgba(79,70,229,.40); }
+  button.ai-btn{ background:linear-gradient(135deg, #7c3aed, #a855f7); border-color:#7c3aed; box-shadow:0 4px 14px rgba(124,58,237,.30); }
+  button.ai-btn:hover:not(:disabled){ background:linear-gradient(135deg, #6d28d9, #9333ea); }
+  button.success{ background:linear-gradient(135deg, #10b981, #059669); border-color:#059669; box-shadow:0 4px 14px rgba(16,185,129,.30); }
+  button.success:hover:not(:disabled){ background:linear-gradient(135deg, #059669, #047857); }
+
+  button:focus-visible, input:focus-visible, a:focus-visible, select:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  input[type="checkbox"], input[type="radio"]{ accent-color:var(--accent); width:15px; height:15px; vertical-align:middle; cursor:pointer; }
+  label{ cursor:pointer; }
+
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+
+  .log-console{
+    background:linear-gradient(160deg,#131124,#191630); color:#e0dcf2; font-family:var(--mono); font-size:12px;
+    padding:14px 16px; max-height:220px; overflow-y:auto; white-space:pre-wrap;
+    border:1px solid #292444; border-radius:var(--r);
+    box-shadow:inset 0 2px 8px rgba(0,0,0,.3);
+  }
+  .log-console .l-err{ color:#f87171; font-weight:600; }
+  .log-console .l-warn{ color:#fbbf24; font-weight:600; }
+  .log-console .l-ok{ color:#34d399; font-weight:600; }
+  .log-console .l-ai{ color:#c084fc; font-weight:600; }
+
+  table.data-table{ width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px; }
+  table.data-table th{
+    text-align:left; padding:9px 12px; background:linear-gradient(180deg,#fafaff,#eff1fc); color:var(--ink);
+    border-bottom:2px solid var(--accent); position:sticky; top:0; font-weight:700; z-index:2;
+    white-space:nowrap;
+  }
+  table.data-table td{ padding:7px 12px; border-bottom:1px solid var(--line-soft); vertical-align:top; white-space:nowrap; }
+  table.data-table tbody tr:nth-child(even){ background:#fbfbfe; }
+  table.data-table tbody tr:hover{ background:var(--accent-soft); }
+  .table-scroll{ max-height:360px; overflow:auto; border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow-sm); }
+
+  /* Table search & pagination bar */
+  .table-controls{
+    display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+    margin-bottom:10px; font-size:12.5px;
+  }
+  .table-controls-right{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .search-input{
+    padding:6px 12px; border:1.5px solid var(--line); border-radius:var(--r-sm);
+    font-size:12.5px; font-family:var(--sans); width:220px; background:#fff;
+  }
+  .search-input:focus{ border-color:var(--accent); outline:none; box-shadow:0 0 0 3px var(--accent-soft); }
+  .pagination-bar{
+    display:inline-flex; align-items:center; gap:4px; font-family:var(--sans); font-size:12px;
+  }
+  .pagination-bar button{
+    padding:4px 9px; font-size:11.5px; border-radius:6px; font-weight:600;
+  }
+  .page-select{
+    padding:4px 6px; border:1px solid var(--line); border-radius:6px; font-size:12px; background:#fff;
+  }
+
+  .tag{ display:inline-flex; align-items:center; gap:5px; padding:3px 10px; font-size:11px; font-family:var(--sans); border-radius:20px; font-weight:700; letter-spacing:.02em; }
+  .tag-ok{ background:var(--success-soft); color:var(--success-dark); }
+  .tag-ok::before{ content:"●"; font-size:8px; color:var(--success); }
+  .tag-warn{ background:var(--warn-soft); color:var(--warn-dark); }
+  .tag-warn::before{ content:"●"; font-size:8px; color:var(--warn); }
+  .tag-err{ background:var(--err-soft); color:var(--err-dark); }
+  .tag-err::before{ content:"●"; font-size:8px; color:var(--err); }
+  .tag-info{ background:var(--info-soft); color:var(--info); }
+  .tag-info::before{ content:"●"; font-size:8px; color:var(--info); }
+  .tag-ai{ background:var(--ai-soft); color:var(--ai-dark); }
+  .tag-ai::before{ content:"✨"; font-size:9px; }
+
+  /* Clickable Stat Pills for Processing Log */
+  .stat-pill{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:3px 9px; font-size:12px; font-family:var(--mono); font-weight:700;
+    border-radius:12px; background:#eff2fe; color:var(--accent-dark); border:1px solid #d5dbf8;
+    transition:all .15s ease;
+  }
+  .stat-pill.clickable{ cursor:pointer; text-decoration:none; }
+  .stat-pill.clickable:hover{ transform:scale(1.06); background:var(--accent); color:#fff; border-color:var(--accent-dark); box-shadow:0 2px 8px rgba(79,70,229,.35); }
+  .stat-ok{ background:var(--success-soft); color:var(--success-dark); border-color:#a7f3d0; }
+  .stat-ok.clickable:hover{ background:var(--success); color:#fff; border-color:var(--success-dark); box-shadow:0 2px 8px rgba(16,185,129,.35); }
+  .stat-warn{ background:var(--warn-soft); color:var(--warn-dark); border-color:#fde68a; }
+  .stat-warn.clickable:hover{ background:var(--warn); color:#fff; border-color:var(--warn-dark); box-shadow:0 2px 8px rgba(245,158,11,.35); }
+  .stat-err{ background:var(--err-soft); color:var(--err-dark); border-color:#fecaca; }
+  .stat-err.clickable:hover{ background:var(--err); color:#fff; border-color:var(--err-dark); box-shadow:0 2px 8px rgba(239,68,68,.35); }
+  .stat-muted{ background:#f1f3f9; color:#64748b; border-color:#e2e8f0; }
+  .stat-muted.clickable:hover{ background:#475569; color:#fff; border-color:#334155; }
+  .note-pill{ font-family:var(--sans); font-size:12px; color:var(--accent-dark); text-decoration:underline; cursor:pointer; padding:2px 6px; border-radius:4px; }
+  .note-pill:hover{ background:var(--accent-soft); text-decoration:none; }
+
+  .hint{ font-family:var(--sans); font-style:normal; font-size:12.5px; color:var(--ink-soft); margin-top:8px; line-height:1.6; }
+  .footer-note{ font-family:var(--sans); font-size:11.5px; color:#9298b3; margin-top:40px; border-top:1px solid var(--line); padding-top:16px; line-height:1.65; }
+
+  /* Modal Overlay */
+  .sheet-view-overlay{
+    position:fixed; inset:0; background:rgba(18,16,36,.6); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; z-index:1000; padding:24px;
+  }
+  .sheet-view-modal{
+    background:var(--panel); border-radius:var(--r-lg); box-shadow:var(--shadow-lg);
+    width:min(1180px, 100%); max-height:88vh; display:flex; flex-direction:column; overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .sheet-view-header{
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    padding:16px 20px; border-bottom:1px solid var(--line); flex:none;
+    background:linear-gradient(135deg, #3730a3 0%, #4f46e5 60%, #7c3aed 100%); color:#fff;
+  }
+  .sheet-view-title{ font-size:15px; font-weight:800; }
+  .sheet-view-subtitle{ font-size:11.5px; color:#e0e7ff; font-family:var(--mono); margin-top:2px; }
+  .sheet-view-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .sheet-view-actions button.secondary{ background:rgba(255,255,255,.16); color:#fff; border-color:rgba(255,255,255,.35); }
+  .sheet-view-actions button.secondary:hover:not(:disabled){ background:#fff; color:var(--ink); }
+  .sheet-view-savedmsg{ font-family:var(--sans); font-size:12px; color:#a7f3d0; font-weight:700; opacity:0; transition:opacity .25s; }
+  .sheet-view-savedmsg.show{ opacity:1; }
+  .sheet-view-body{ padding:18px 20px; overflow:auto; flex:1 1 auto; }
+  .sheet-view-scroll{ max-height:58vh; }
+  .sheet-view-loading, .sheet-view-empty{ padding:40px 0; text-align:center; color:var(--ink-soft); font-family:var(--sans); font-size:13px; }
+  .sheet-view-hint{ font-family:var(--sans); font-size:12px; color:var(--ink-soft); margin:0 0 12px; }
+
+  table.sheet-view-table{ width:auto; min-width:100%; }
+  table.sheet-view-table th, table.sheet-view-table td{ white-space:nowrap; padding:4px 6px; }
+  .sv-th-wrap{ display:flex; align-items:center; gap:4px; }
+  .sv-rownum-col{ width:40px; min-width:40px; color:var(--ink-soft); font-family:var(--mono); font-size:11px; text-align:center; background:#fafaff; }
+
+  input.sv-editable{
+    min-width:110px; padding:5px 8px; border:1.5px solid transparent; border-radius:6px;
+    font-family:var(--sans); font-size:12px; background:transparent; outline:none; color:var(--ink);
+  }
+  input.sv-editable:hover{ border-color:var(--line); background:#fafaff; }
+  input.sv-editable:focus{ border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px var(--accent-soft); }
+  input.sv-th-editable{ font-weight:700; color:var(--ink); min-width:120px; }
+
+  .sv-del-col, .sv-del-row{
+    flex:none; border:none; background:transparent; color:var(--err); cursor:pointer;
+    font-size:12px; padding:2px 5px; border-radius:6px; line-height:1;
+  }
+  .sv-del-col:hover, .sv-del-row:hover{ background:var(--err-soft); }
+
+  @media (max-width:640px){
+    .wrap{ padding:16px 12px 60px; }
+    header.page{ padding:20px 16px; flex-direction:column; align-items:flex-start; }
+    .pipeline-tag{ text-align:left; }
+    .panel{ padding:16px 14px; }
+    .dropzone{ padding:28px 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div>
+      <h1>EBR AI Intelligent Raw Data Hub <span class="ai-badge">✨ AI Enhanced</span> <span id="engineBadge" class="ai-badge" style="background:rgba(16,185,129,.35); border-color:#34d399;">⚡ Client Engine Ready</span></h1>
+      <p>Self-learning Dynamic DMS Consolidation Engine with AI Semantic Fuzzy Matching, Content-Pattern Discovery, Conversion Funnel Analytics, and 100% Client-Side Privacy.</p>
+    </div>
+    <div class="pipeline-tag">AI Auto-Ingest Engine · v3.0<br/>50 Lakh Big-Data Architecture Support Enabled</div>
+  </header>
+
+  <!-- Metric KPI Cards -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card kpi-accent">
+      <div class="kpi-label">Workbooks / Files</div>
+      <div class="kpi-val" id="kpiFiles">0</div>
+      <div class="kpi-sub" id="kpiFilesSub">Awaiting upload</div>
+    </div>
+    <div class="kpi-card kpi-info">
+      <div class="kpi-label">Sheets Scanned</div>
+      <div class="kpi-val" id="kpiSheets">0</div>
+      <div class="kpi-sub" id="kpiSheetsSub">0 categorised</div>
+    </div>
+    <div class="kpi-card kpi-success">
+      <div class="kpi-label">Consolidated Rows</div>
+      <div class="kpi-val" id="kpiRows">0</div>
+      <div class="kpi-sub" id="kpiRowsSub">Ready to process</div>
+    </div>
+    <div class="kpi-card kpi-ai">
+      <div class="kpi-label">AI Health Score</div>
+      <div class="kpi-val" id="kpiQuality">100%</div>
+      <div class="kpi-sub" id="kpiQualitySub">AI validation ready</div>
+    </div>
+  </div>
+
+  <!-- AI Conversion Funnel & Intelligent Analytics Banner -->
+  <div class="ai-funnel-card" id="aiFunnelCard" style="display:none;">
+    <div class="ai-funnel-header">
+      <div class="ai-funnel-title">✨ AI Automotive Conversion Funnel &amp; Dealership Intelligence</div>
+      <div style="font-size:12.5px; color:#c7d2fe; font-family:var(--mono);" id="aiFunnelOverall">Overall Conversion: 0.0%</div>
+    </div>
+    <div class="ai-funnel-steps">
+      <div class="ai-step-box">
+        <div class="ai-step-name">1 · Inquiries / Leads</div>
+        <div class="ai-step-num" id="aiCountEnq">0</div>
+        <div class="ai-step-rate">Top of Funnel (100%)</div>
+      </div>
+      <div class="ai-step-box">
+        <div class="ai-step-name">2 · Confirmed Bookings</div>
+        <div class="ai-step-num" id="aiCountBkg">0</div>
+        <div class="ai-step-rate" id="aiRateBkg">0.0% of Enquiries</div>
+      </div>
+      <div class="ai-step-box">
+        <div class="ai-step-name">3 · Retail / Invoiced</div>
+        <div class="ai-step-num" id="aiCountRtl">0</div>
+        <div class="ai-step-rate" id="aiRateRtl">0.0% of Bookings</div>
+      </div>
+    </div>
+    <div class="ai-insights-pills" id="aiInsightsPills">
+      <div class="ai-pill" id="aiTopModelPill">🚗 Top Model: Analyzing…</div>
+      <div class="ai-pill" id="aiTopDealerPill">🏢 Top Dealership: Analyzing…</div>
+      <div class="ai-pill" id="aiPhoneValidPill">📱 Contact Data Quality: 100%</div>
+    </div>
+  </div>
+
+  <!-- Step 1: Upload -->
+  <section>
+    <h2 class="section-title">1 · Upload &amp; Ingestion</h2>
+    <div class="dropzone" id="dropzone">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0-12l-4 4m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      <strong>Drop ZIP / Excel / CSV files or Dealership Folders here</strong>
+      <span>Supports nested ZIPs, multiple .xlsx / .xls / .xlsm / .csv files, or entire folders.</span>
+      <div id="fileNamePill"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".zip,.xlsx,.xls,.xlsm,.csv" multiple style="display:none" />
+    <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none" />
+    <div class="toolbar" style="margin-top:12px;">
+      <button class="secondary small" onclick="document.getElementById('fileInput').click()">📁 Browse Files (Multi-select)</button>
+      <button class="secondary small" onclick="document.getElementById('folderInput').click()">📂 Browse Folder</button>
+      <button class="ai-btn small" id="autoConsolidateBtn" disabled onclick="runCompleteIntegration()">⚡ AI 1-Click Auto-Consolidate &amp; Process</button>
+    </div>
+  </section>
+
+  <!-- Resume Checkpoint Notice -->
+  <section id="resumeSection">
+    <div class="panel" id="resumeBanner" style="display:none; border-color:var(--warn); border-left-color:var(--warn); background:var(--warn-soft);">
+      <div style="font-size:13px;" id="resumeText"></div>
+      <div class="toolbar" style="margin-top:10px;">
+        <button class="accent small" onclick="resumeFromCheckpoint()">Resume from saved progress</button>
+        <button class="secondary small" onclick="discardCheckpointAndStartFresh()">Discard &amp; start fresh</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2: Sheet Tab Name & Raw Mapping -->
+  <section id="rawConsolSection">
+    <h2 class="section-title collapsible open" onclick="toggleCollapsible('rawConsolSection')">2 · Sheet Categorization &amp; In-line Data Editor</h2>
+    <div class="panel" id="rawConsolSectionBody">
+      <div style="font-size:13px; font-weight:700; margin-bottom:10px;">Detected Sheets &amp; Target Category Mapping</div>
+      <table class="map-table" id="tabNameMapTable">
+        <thead>
+          <tr>
+            <th style="width:32%">File name (auto-detected)</th>
+            <th style="width:30%">Sheet name</th>
+            <th style="width:20%">Category</th>
+            <th style="width:120px">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="row-actions">
+        <button class="secondary small" onclick="addTabNameRow()">+ Add row manually</button>
+        <button class="secondary small" onclick="exportMap('tabNameMapTable','tab-name-map.json')">Export Mapping JSON</button>
+        <button class="secondary small" onclick="document.getElementById('tabNameMapImport').click()">Import Mapping JSON</button>
+        <input type="file" id="tabNameMapImport" accept=".json" style="display:none" onchange="importMap(event,'tabNameMapTable')"/>
+      </div>
+      <div class="hint">Click <strong>View/Edit</strong> on any sheet to preview the raw grid, edit records, or remove unwanted columns. Any edits saved in the viewer will automatically sync into the final consolidated output.</div>
+      
+      <div class="toolbar" style="margin-top:16px;">
+        <button class="accent" id="rawConsolidateBtn" disabled onclick="runRawConsolidation()">⚡ Consolidate Raw Data</button>
+        <button class="success" id="rawDownloadBtn" style="display:none" onclick="downloadRawConsolidated()">📥 Download Raw_Consolidated.xlsx</button>
+      </div>
+
+      <div class="log-console" id="rawLogConsole" style="margin-top:14px; display:none;"></div>
+      
+      <div id="rawSummaryWrap" style="display:none; margin-top:16px;">
+        <div class="table-scroll">
+          <table class="data-table" id="rawSummaryTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <!-- Raw Data Live Interactive Preview -->
+      <div id="rawPreviewWrap" style="display:none; margin-top:18px;">
+        <div style="font-size:13.5px; font-weight:700; margin-bottom:8px;">Live Consolidated Raw Data Preview</div>
+        <div class="toolbar" id="rawPreviewTabs" style="margin-top:0; margin-bottom:10px;"></div>
+        
+        <div class="table-controls">
+          <div class="hint" id="rawPreviewCountLine" style="margin:0;"></div>
+          <div class="table-controls-right">
+            <input type="text" class="search-input" id="rawSearchInput" placeholder="🔍 Search records..." oninput="debouncedFilterRawPreviewTable()"/>
+            <div id="rawPaginationControls" class="pagination-bar"></div>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table class="data-table" id="rawPreviewTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 3: Dealer & Model Mappings -->
+  <section id="mappingSection">
+    <h2 class="section-title collapsible" onclick="toggleCollapsible('mappingSection')">3 · Dealer &amp; Model Category Rules (Optional)</h2>
+    <div class="grid2" id="mappingSectionBody" style="display:none;">
+      <div class="panel">
+        <div style="font-size:13px; font-weight:700; margin-bottom:10px;">Dealer → Region Mapping</div>
+        <table class="map-table" id="dealerMapTable">
+          <thead><tr><th style="width:50%">Dealer Name (auto-scanned)</th><th>Region</th><th style="width:34px"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="row-actions">
+          <button class="secondary small" onclick="addMapRow('dealerMapTable')">+ Add Dealer</button>
+          <button class="secondary small" onclick="exportMap('dealerMapTable','dealer-region-map.json')">Export JSON</button>
+          <button class="secondary small" onclick="document.getElementById('dealerMapImport').click()">Import JSON</button>
+          <input type="file" id="dealerMapImport" accept=".json" style="display:none" onchange="importMap(event,'dealerMapTable')"/>
+        </div>
+      </div>
+      <div class="panel">
+        <div style="font-size:13px; font-weight:700; margin-bottom:10px;">Model Group / Variant → PV / CV / EV</div>
+        <table class="map-table" id="modelMapTable">
+          <thead><tr><th style="width:50%">Keyword</th><th>Category</th><th style="width:34px"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="row-actions">
+          <button class="secondary small" onclick="addMapRow('modelMapTable')">+ Add Keyword</button>
+          <button class="secondary small" onclick="exportMap('modelMapTable','model-category-map.json')">Export JSON</button>
+          <button class="secondary small" onclick="document.getElementById('modelMapImport').click()">Import JSON</button>
+          <input type="file" id="modelMapImport" accept=".json" style="display:none" onchange="importMap(event,'modelMapTable')"/>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 4: Output Configuration -->
+  <section>
+    <h2 class="section-title">4 · Output Configuration</h2>
+    <div class="panel">
+      <div style="font-size:13px; font-weight:700; margin-bottom:10px;">Include in Master Export</div>
+      <div style="font-size:13px; display:flex; flex-wrap:wrap; gap:12px 24px;">
+        <label><input type="checkbox" id="outEnquiry" checked/> Enquiry</label>
+        <label><input type="checkbox" id="outBooking" checked/> Booking</label>
+        <label><input type="checkbox" id="outRetail" checked/> Retail</label>
+        <label><input type="checkbox" id="outFinance" checked/> Finance (raw columns)</label>
+        <label><input type="checkbox" id="outAccessories" checked/> Accessories (raw columns)</label>
+        <label><input type="checkbox" id="outRawData" checked/> Raw Consolidated (all untouched rows)</label>
+        <label><input type="checkbox" id="outProcessingLog" checked/> Processing Log</label>
+        <label><input type="checkbox" id="outErrorLog" checked/> Error Log</label>
+      </div>
+      <div style="font-size:13px; font-weight:700; margin:16px 0 8px;">Export Format</div>
+      <div style="font-size:13px; display:flex; gap:20px; flex-wrap:wrap;">
+        <label><input type="radio" name="outFormat" value="xlsx" checked/> Single Excel Workbook (.xlsx)</label>
+        <label><input type="radio" name="outFormat" value="csv"/> Individual CSV Files</label>
+        <label><input type="radio" name="outFormat" value="zip"/> ZIP Bundle of CSVs</label>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 5: Cleaned Master Pipeline -->
+  <section>
+    <h2 class="section-title">5 · AI Semantic Bifurcation &amp; Standardization Engine</h2>
+    <div class="hint" style="margin-top:0; margin-bottom:12px;">Applies AI fuzzy matching, data content pattern recognition, standardized column bifurcation, and intelligent quality scoring. <em>(Zero rows deleted — all duplicates and records retained).</em></div>
+    <div class="toolbar">
+      <button class="ai-btn" id="processBtn" disabled onclick="runPipeline()">✨ Run AI Smart Engine</button>
+      <button class="success" id="downloadBtn" style="display:none" onclick="downloadOutput()">📥 Download Master Report</button>
+      <span id="statusText" class="hint" style="margin-top:0; font-weight:600;"></span>
+    </div>
+    <div class="log-console" id="logConsole" style="margin-top:14px; display:none;"></div>
+  </section>
+
+  <!-- Step 6: Live Cleaned Data Preview -->
+  <section id="previewSection" style="display:none;">
+    <h2 class="section-title">6 · Cleaned Master Data Preview</h2>
+    <div class="toolbar" id="previewTabs" style="margin-top:0; margin-bottom:10px;"></div>
+    <div class="table-controls">
+      <div class="hint" id="previewCountLine" style="margin:0;"></div>
+      <div class="table-controls-right">
+        <input type="text" class="search-input" id="cleanSearchInput" placeholder="🔍 Search cleaned records..." oninput="debouncedFilterCleanPreviewTable()"/>
+        <div id="cleanPaginationControls" class="pagination-bar"></div>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table" id="previewTable"><thead></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <!-- Step 7: Processing Log -->
+  <section id="logSection">
+    <h2 class="section-title collapsible" onclick="toggleCollapsible('logSection')">7 · Processing Log (Per Sheet Details)</h2>
+    <div class="collapsible-body" id="logSectionBody" style="display:none;">
+      <div class="toolbar" style="margin-top:0; margin-bottom:10px;">
+        <button class="secondary small" onclick="downloadProcessingLog()">Download Processing_Log.xlsx</button>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table" id="processingLogTable"><thead></thead><tbody><tr><td>Run the pipeline to populate this log.</td></tr></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 8: Error / Review Log -->
+  <section id="errorSection">
+    <h2 class="section-title collapsible" onclick="toggleCollapsible('errorSection')">8 · Error &amp; Anomaly Review Log</h2>
+    <div class="collapsible-body" id="errorSectionBody" style="display:none;">
+      <div class="toolbar" style="margin-top:0; margin-bottom:10px;">
+        <button class="secondary small" onclick="downloadErrorLog()">Download Error_Log.xlsx</button>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table" id="errorLogTable"><thead></thead><tbody><tr><td>Run the pipeline to populate this log.</td></tr></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer-note">⚡ Built with AI Dynamic Ingestion Suite. All processing remains 100% private in browser memory.</div>
+</div>
+
+<!-- Sheet Viewer / In-line Editor Modal -->
+<div class="sheet-view-overlay" id="sheetViewOverlay" onclick="if(event.target===this) closeSheetViewModal()">
+  <div class="sheet-view-modal">
+    <div class="sheet-view-header">
+      <div>
+        <div class="sheet-view-title" id="sheetViewTitle">Sheet Viewer</div>
+        <div class="sheet-view-subtitle" id="sheetViewSubtitle"></div>
+      </div>
+      <div class="sheet-view-actions">
+        <button type="button" class="secondary small" onclick="addSheetViewRow()">+ Add Row</button>
+        <span class="sheet-view-savedmsg" id="sheetViewSavedMsg"></span>
+        <button type="button" class="accent small" onclick="saveSheetViewChanges()">💾 Save Changes</button>
+        <button type="button" class="secondary small" onclick="closeSheetViewModal()">✕ Close</button>
+      </div>
+    </div>
+    <div class="sheet-view-body">
+      <div id="sheetViewLoading" class="sheet-view-loading">Loading sheet data…</div>
+      <div id="sheetViewEmpty" class="sheet-view-empty" style="display:none;"></div>
+      <div id="sheetViewContent" style="display:none;">
+        <p class="sheet-view-hint">✏️ Edit cells directly. Use ✕ to delete columns or 🗑 to delete rows. Changes will be saved into the consolidation engine when you click "Save Changes".</p>
+        <div class="table-scroll sheet-view-scroll" id="sheetViewScroll">
+          <table class="data-table sheet-view-table" id="sheetViewTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Processing Log Subset Inspector & Downloader Modal -->
+<div class="sheet-view-overlay" id="logSubsetOverlay" onclick="if(event.target===this) closeLogSubsetModal()">
+  <div class="sheet-view-modal" style="width:min(1280px, 98%);">
+    <div class="sheet-view-header" style="background:linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #4338ca 100%);">
+      <div>
+        <div class="sheet-view-title" id="logSubsetModalTitle">Raw Data Inspector</div>
+        <div class="sheet-view-subtitle" id="logSubsetModalSubtitle"></div>
+      </div>
+      <div class="sheet-view-actions">
+        <button type="button" class="success small" onclick="downloadActiveModalSubset('xlsx')">📥 Download Excel (.xlsx)</button>
+        <button type="button" class="secondary small" onclick="downloadActiveModalSubset('csv')">📥 Download CSV</button>
+        <button type="button" class="secondary small" onclick="closeLogSubsetModal()">✕ Close</button>
+      </div>
+    </div>
+    <div class="sheet-view-body">
+      <div class="table-controls" style="margin-bottom:12px;">
+        <div class="hint" id="logSubsetCountLine" style="margin:0; font-weight:600;"></div>
+        <input type="text" class="search-input" id="logSubsetSearchInput" placeholder="🔍 Search records..." oninput="filterLogSubsetTable()"/>
+      </div>
+      <div class="table-scroll" style="max-height:60vh;" id="logSubsetScroll">
+        <table class="data-table" id="logSubsetTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   AI SEMANTIC & FUZZY MATCHING UTILITIES
+   ============================================================================ */
+function normalizeHeader(raw) {
+  return String(raw == null ? '' : raw)
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x00-\x7F]+/g, ' ')
+    .replace(/[_\-\/]+/g, ' ')
+    .replace(/[.,()\[\]#:;]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function levenshteinDistance(s1, s2) {
+  s1 = s1 || ''; s2 = s2 || '';
+  const m = s1.length, n = s2.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function stringSimilarity(s1, s2) {
+  if (!s1 || !s2) return 0;
+  if (s1 === s2) return 1;
+  const maxLen = Math.max(s1.length, s2.length);
+  if (maxLen === 0) return 1;
+  const dist = levenshteinDistance(s1, s2);
+  return (maxLen - dist) / maxLen;
+}
+
+const COLUMN_SYNONYMS = {
+  ENQUIRY_NUMBER: { strict: ['enquiry number', 'dms enquiry number', 'enquiry no', 'enquiry id', 'lead id', 'lead number', 'inquiry number', 'enquiry num', 'lead no', 'enq id', 'enq no', 'enquiry no.'], loose: ['enquiry num', 'enq number', 'enq no', 'enq id'] },
+  ENQUIRY_DATE: { strict: ['enquiry date', 'enq assign date', 'stage 1 date', 'lead date', 'enquiry created date', 'enquiry dt', 'lead dt', 'enq date'], loose: ['enquiry date time', 'enq date', 'enq dt'] },
+  ENQUIRY_TYPE: { strict: ['enquiry type', 'enq type', 'lead type', 'type of enquiry', 'inquiry type', 'enquiry category', 'enquiry type desc', 'enquiry type name', 'type'], loose: ['enq type', 'lead type', 'enquiry type'] },
+  ENQUIRY_SOURCE: { strict: ['enquiry source', 'source of contact', 'enquiry sub source', 'lead source', 'source', 'enq source'], loose: ['enq source', 'sub source'] },
+  CONTACT_NUMBER: { strict: ['customer phone', 'customer mobile phone', 'mobile number', 'mobile no', 'phone no', 'phone number', 'contact number', 'ph no', 'lessee mobile number', 'contact no', 'mobile', 'customer contact number', 'phone mobile number', 'contact phone number', 'booking customer phone', 'cust mobile no', 'cust phone', 'phone no.', 'mobile no.'], loose: ['mobile num', 'phone', 'contact ph', 'cust mobile'] },
+  MODEL_GROUP: { strict: ['model group', 'product family', 'model', 'vehicle model', 'parent product line', 'product line', 'model family', 'mtoc', 'vehicle', 'model grp'], loose: ['model grp', 'vehicle', 'prod line'] },
+  MODEL_VARIANT: { strict: ['model variant', 'variant description', 'model description', 'variant', 'product description', 'model desc', 'varient desc', 'model var', 'variant desc'], loose: ['varient', 'varrant', 'model var', 'variant desc'] },
+  DEALER_NAME: { strict: ['dealer name', 'dealer parent name', 'dealership', 'delr name desc', 'parent name', 'dealer', 'dealer name desc', 'dealership name', 'dealer name / branch'], loose: ['dealer nm', 'delr name'] },
+  LOCATION: { strict: ['dealer location', 'dealer location name', 'location', 'branch', 'outlet', 'city', 'branch name', 'outlet name', 'dealer location desc'], loose: ['dealer loc', 'branch name', 'outlet'] },
+  REGION: { strict: ['region', 'state', 'zone', 'registration state', 'dealer region', 'area office'], loose: [] },
+  BOOKING_NUMBER: { strict: ['booking number', 'dms booking number', 'booking no', 'order number', 'order no', 'booking num', 'order id', 'so number', 'so no', 'booking no.'], loose: ['booking num', 'bkg no', 'order num'] },
+  BOOKING_DATE: { strict: ['booking date and time', 'booking date', 'created date', 'order date', 'booking dt', 'order dt', 'so date'], loose: ['booking dt', 'order dt'] },
+  BOOKING_STATUS: { strict: ['booking status', 'booking stage', 'order status', 'sales stage', 'status', 'so status', 'sales stage desc'], loose: ['bkg status'] },
+  INVOICE_NUMBER: { strict: ['invoice number', 'invoice no', 'oem invoice number', 'inv no', 'inv number', 'invoice num', 'bill no', 'bill number', 'delivery no', 'delivery number', 'dn no', 'retail invoice no', 'retail invoice number', 'tax invoice no', 'tax invoice number', 'chassis no', 'chassis number', 'vin', 'vin no', 'gatepass no', 'gp no', 'invoice no.'], loose: ['invoice', 'inv no', 'bill no', 'retail no', 'delivery no'] },
+  INVOICE_DATE: { strict: ['invoice date and time', 'invoice date', 'billing date', 'inv date', 'invoice dt', 'inv dt', 'bill dt', 'bill date', 'retail date', 'retail dt', 'delivery date', 'delivery dt', 'do date', 'sale date', 'sales date', 'gatepass date', 'gp date'], loose: ['invoice dt', 'inv dt', 'retail dt', 'delivery dt', 'bill dt'] },
+  INVOICE_STATUS: { strict: ['invoice status', 'retail status', 'delivery status', 'billing status', 'sales status', 'status', 'inv status'], loose: ['retail stat'] },
+  FINANCIER: { strict: ['financier', 'financer', 'financer name', 'bank', 'finance', 'finance company', 'financier name'], loose: ['fin name'] },
+  LOAN_AMOUNT: { strict: ['loan amount', 'loan amt', 'finance amount', 'disb amt', 'disbursed amount'], loose: ['finance amt'] },
+  CUSTOMER_NAME: { strict: ['customer name', 'party name', 'walkin customer name', 'name of customer', 'customer nm', 'cust name', 'buyer name'], loose: ['cust nm', 'client name'] },
+  NET_BILL_AMOUNT: { strict: ['net bill amnt', 'net bill amount', 'bill amount', 'basc amnt', 'invoice amount', 'total invoice amount'], loose: ['bill amt'] },
+  BILL_DATE: { strict: ['bill date', 'billing date'], loose: [] },
+  BILL_NUMBER: { strict: ['bill number', 'bill numbr', 'bill no'], loose: [] }
+};
+
+const ALL_STRICT_PHRASES = new Set();
+Object.values(COLUMN_SYNONYMS).forEach(def => def.strict.forEach(p => ALL_STRICT_PHRASES.add(p)));
+
+function isKnownSynonymCell(normCell) {
+  if (!normCell) return false;
+  return ALL_STRICT_PHRASES.has(normCell);
+}
+
+function looksLikeLabel(normCell) {
+  if (!normCell) return false;
+  if (/^\d+(\.\d+)?$/.test(normCell)) return false;
+  if (normCell.length > 45) return false;
+  return /^[a-z][a-z0-9 ]*$/i.test(normCell);
+}
+
+function isLikelyRepeatedHeaderRow(row) {
+  const nonEmptyIdx = [];
+  row.forEach((c, idx) => { if (String(c == null ? '' : c).trim() !== '') nonEmptyIdx.push(idx); });
+  if (nonEmptyIdx.length < 2) return false;
+  let matched = 0;
+  nonEmptyIdx.forEach(idx => { if (isKnownSynonymCell(normalizeHeader(row[idx]))) matched++; });
+  return matched >= 2 && (matched / nonEmptyIdx.length) >= 0.5;
+}
+
+function stripRepeatedHeaderRows(dataRows) {
+  const clean = [];
+  const repeatedRows = [];
+  let repeatedHeaderCount = 0;
+  dataRows.forEach(row => {
+    if (isRowEmpty(row)) { clean.push(row); return; }
+    if (isLikelyRepeatedHeaderRow(row)) { repeatedHeaderCount++; repeatedRows.push(row); return; }
+    clean.push(row);
+  });
+  return { clean, repeatedHeaderCount, repeatedRows };
+}
+
+function detectHeaderRow(rows2D, maxScan) {
+  maxScan = maxScan || 30;
+  const limit = Math.min(maxScan, rows2D.length);
+  const candidates = [];
+  for (let i = 0; i < limit; i++) {
+    const row = rows2D[i] || [];
+    const nonEmptyIdx = [];
+    row.forEach((c, idx) => { if (String(c == null ? '' : c).trim() !== '') nonEmptyIdx.push(idx); });
+    if (nonEmptyIdx.length < 2) continue;
+    let score = 0, matchedCount = 0;
+    nonEmptyIdx.forEach(idx => {
+      const nc = normalizeHeader(row[idx]);
+      if (isKnownSynonymCell(nc)) { score += 3.5; matchedCount++; }
+      else if (looksLikeLabel(nc)) { score += 0.5; }
+      else { score -= 0.2; }
+    });
+    const nextRow = rows2D[i + 1];
+    if (nextRow) {
+      const nextNonEmpty = nextRow.filter(c => String(c == null ? '' : c).trim() !== '').length;
+      if (nextNonEmpty >= nonEmptyIdx.length * 0.4) score += 1.5;
+    }
+    candidates.push({ index: i, score, matchedCount, cellCount: nonEmptyIdx.length });
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.score - a.score || b.matchedCount - a.matchedCount || b.cellCount - a.cellCount || a.index - b.index);
+  const best = candidates[0];
+  const headers = (rows2D[best.index] || []).map(h => String(h == null ? '' : h).trim());
+  const confidence = best.cellCount > 0 ? Math.min(99, Math.round((best.matchedCount / best.cellCount) * 100)) : 0;
+  return { index: best.index, confidence, headers, matchedCount: best.matchedCount, cellCount: best.cellCount };
+}
+
+/* ============================================================================
+   AI PATTERN & CONTENT DISCOVERY (Inspects column data values if header is generic)
+   ============================================================================ */
+function aiDetectFieldByDataContent(sampleValues) {
+  if (!sampleValues || !sampleValues.length) return null;
+  const vals = sampleValues.filter(v => v !== null && String(v).trim() !== '');
+  if (!vals.length) return null;
+
+  let phoneHits = 0, invHits = 0, bkgHits = 0, enqHits = 0, dateHits = 0;
+  for (const v of vals) {
+    const s = String(v).replace(/\.0$/, '').replace(/\s+/g, '');
+    if (/^[6-9]\d{9}$/.test(s) || /^\+?91[6-9]\d{9}$/.test(s)) phoneHits++;
+    if (/^INV[\w\d]+/i.test(s) || /^TAX[\w\d]+/i.test(s) || /^BL[\w\d]+/i.test(s)) invHits++;
+    if (/^BK[\w\d]+/i.test(s) || /^B-[\w\d]+/i.test(s) || /^OTF[\w\d]+/i.test(s) || /^SO[\w\d]+/i.test(s)) bkgHits++;
+    if (/^EN-[\w\d]+/i.test(s) || /^ENQ[\w\d]+/i.test(s) || /^LD-[\w\d]+/i.test(s)) enqHits++;
+    if (v instanceof Date || (typeof v === 'number' && v > 35000 && v < 60000) || /^\d{4}-\d{2}-\d{2}/.test(s) || /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(s)) dateHits++;
+  }
+
+  const threshold = Math.max(2, vals.length * 0.35);
+  if (phoneHits >= threshold) return { field: 'CONTACT_NUMBER', confidence: Math.round((phoneHits / vals.length) * 100) };
+  if (invHits >= threshold) return { field: 'INVOICE_NUMBER', confidence: Math.round((invHits / vals.length) * 100) };
+  if (bkgHits >= threshold) return { field: 'BOOKING_NUMBER', confidence: Math.round((bkgHits / vals.length) * 100) };
+  if (enqHits >= threshold) return { field: 'ENQUIRY_NUMBER', confidence: Math.round((enqHits / vals.length) * 100) };
+  return null;
+}
+
+function findBestSourceForFieldWithIndex(fieldKey, normHeaderList, sampleRows) {
+  const def = COLUMN_SYNONYMS[fieldKey];
+  if (def) {
+    // 1. Exact Match
+    for (const p of def.strict) {
+      const hit = normHeaderList.find(h => h.norm === p);
+      if (hit) return { header: hit.raw, idx: hit.idx, matchType: 'exact', score: 1.0 };
+    }
+    // 2. Substring Match
+    for (const p of def.strict) {
+      const hit = normHeaderList.find(h => h.norm.includes(p) || (h.norm.length >= 4 && p.includes(h.norm)));
+      if (hit) return { header: hit.raw, idx: hit.idx, matchType: 'synonym', score: 0.9 };
+    }
+    // 3. AI Fuzzy Semantic Match
+    for (const p of def.strict) {
+      for (const h of normHeaderList) {
+        if (h.norm.length >= 4 && stringSimilarity(h.norm, p) >= 0.82) {
+          return { header: h.raw, idx: h.idx, matchType: 'ai-fuzzy', score: 0.85 };
+        }
+      }
+    }
+    // 4. Loose Match
+    for (const p of def.loose) {
+      const hit = normHeaderList.find(h => h.norm.includes(p));
+      if (hit) return { header: hit.raw, idx: hit.idx, matchType: 'loose', score: 0.7 };
+    }
+  }
+
+  // 5. AI Data Pattern Fallback (Inspect values if column name was generic)
+  if (sampleRows && sampleRows.length) {
+    for (let c = 0; c < (sampleRows[0] || []).length; c++) {
+      const colVals = sampleRows.map(r => r[c]);
+      const pattern = aiDetectFieldByDataContent(colVals);
+      if (pattern && pattern.field === fieldKey) {
+        return { header: (sampleRows[0] && sampleRows[0][c]) || ('Col ' + (c + 1)), idx: c, matchType: 'ai-pattern', score: 0.8 };
+      }
+    }
+  }
+
+  return null;
+}
+
+const TYPE_SCORING = {
+  Enquiry: { ENQUIRY_NUMBER: 10, ENQUIRY_DATE: 5, ENQUIRY_TYPE: 3, ENQUIRY_SOURCE: 3, CONTACT_NUMBER: 2, MODEL_GROUP: 1, MODEL_VARIANT: 1, DEALER_NAME: 1, LOCATION: 1 },
+  Booking: { BOOKING_NUMBER: 10, BOOKING_DATE: 3, BOOKING_STATUS: 4, MODEL_GROUP: 2, MODEL_VARIANT: 1, CONTACT_NUMBER: 1, DEALER_NAME: 1 },
+  Retail: { INVOICE_NUMBER: 10, INVOICE_DATE: 5, INVOICE_STATUS: 3, MODEL_GROUP: 2, MODEL_VARIANT: 1, DEALER_NAME: 1, CONTACT_NUMBER: 1 },
+  Finance: { FINANCIER: 5, LOAN_AMOUNT: 4, CUSTOMER_NAME: 2, MODEL_GROUP: 1 },
+  Accessories: { NET_BILL_AMOUNT: 5, CUSTOMER_NAME: 3, BILL_DATE: 3, MODEL_GROUP: 2, BILL_NUMBER: 2 }
+};
+
+const TYPE_ANCHORS = {
+  Enquiry: ['enquiry number', 'dms enquiry number', 'enquiry no', 'lead id', 'lead number', 'enquiry num'],
+  Booking: ['booking number', 'dms booking number', 'booking no', 'order number', 'so number', 'booking num'],
+  Retail: ['invoice number', 'oem invoice number', 'invoice no', 'inv no', 'inv number', 'tax invoice no', 'retail invoice no', 'delivery no', 'chassis no', 'chassis number', 'bill no'],
+  Finance: ['financier', 'financer name'],
+  Accessories: ['net bill amnt', 'net bill amount', 'bill numbr', 'bill number']
+};
+
+const ANCILLARY_DISQUALIFIERS = [
+  { phrases: ['test drive number', 'td number'], label: 'Test Drive Report' },
+  { phrases: ['scheme invoice no', 'scheme reg date'], label: 'RSA / Extended Warranty Scheme Report' },
+  { phrases: ['stock in date'], label: 'Vehicle Stock / Trade-In Report' }
+];
+
+function detectReportType(headers, sheetName) {
+  const normHeaderList = headers.map(h => ({ raw: h, norm: normalizeHeader(h) })).filter(h => h.norm);
+  const normSet = new Set(normHeaderList.map(h => h.norm));
+
+  for (const dq of ANCILLARY_DISQUALIFIERS) {
+    if (dq.phrases.some(p => normSet.has(p))) {
+      return { type: 'UNKNOWN_REPORT', confidence: 0, matched: [], allScores: {}, suggestedType: dq.label };
+    }
+  }
+
+  const results = {};
+  for (const [type, weights] of Object.entries(TYPE_SCORING)) {
+    let score = 0; const matched = [];
+    for (const [fieldKey, weight] of Object.entries(weights)) {
+      const m = findBestSourceForFieldWithIndex(fieldKey, normHeaderList);
+      if (m) {
+        score += weight * m.score;
+        matched.push({ field: fieldKey, header: m.header, matchType: m.matchType });
+      }
+    }
+    results[type] = { score, matched };
+  }
+
+  // Anchor priority hierarchy for automotive DMS reports
+  const firingAnchors = Object.entries(TYPE_ANCHORS).filter(([, phrases]) => phrases.some(p => normSet.has(p)));
+  if (firingAnchors.length >= 1) {
+    const anchorTypes = firingAnchors.map(([type]) => type);
+    let chosenType = null;
+    if (anchorTypes.includes('Retail')) chosenType = 'Retail';
+    else if (anchorTypes.includes('Booking')) chosenType = 'Booking';
+    else if (anchorTypes.includes('Enquiry')) chosenType = 'Enquiry';
+    else if (anchorTypes.includes('Finance')) chosenType = 'Finance';
+    else if (anchorTypes.includes('Accessories')) chosenType = 'Accessories';
+    else chosenType = anchorTypes[0];
+
+    const maxPossible = Object.values(TYPE_SCORING[chosenType]).reduce((a, b) => a + b, 0);
+    const confidence = Math.max(75, Math.min(99, Math.round(((results[chosenType]?.score || maxPossible) / maxPossible) * 100)));
+    return { type: chosenType, confidence, matched: results[chosenType]?.matched || [], allScores: results };
+  }
+
+  let bestType = 'UNKNOWN_REPORT', bestScore = 0, bestMatched = [];
+  for (const [type, r] of Object.entries(results)) {
+    if (r.score > bestScore) { bestScore = r.score; bestType = type; bestMatched = r.matched; }
+  }
+  const THRESHOLD = 5;
+  if (bestScore < THRESHOLD) {
+    return { type: 'UNKNOWN_REPORT', confidence: 0, matched: bestMatched, allScores: results, suggestedType: bestType };
+  }
+  const maxPossible = Object.values(TYPE_SCORING[bestType]).reduce((a, b) => a + b, 0);
+  const confidence = Math.min(99, Math.round((bestScore / maxPossible) * 100));
+  return { type: bestType, confidence, matched: bestMatched, allScores: results };
+}
+
+function trimVal(v) { if (v == null) return ''; return String(v).replace(/\s+/g, ' ').trim(); }
+
+function cleanPhone(v) {
+  if (v == null) return '';
+  let s = String(v).trim();
+  s = s.replace(/\.0$/, '');
+  s = s.replace(/\s+/g, '');
+  s = s.replace(/^[+]?91/, ''); // Clean +91 prefix
+  if (s.startsWith('0') && s.length === 11) s = s.substring(1);
+  return s;
+}
+
+function parseAnyDate(raw) {
+  if (raw == null || raw === '') return null;
+  if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+  if (typeof raw === 'number') {
+    try {
+      if (window.XLSX && XLSX.SSF && XLSX.SSF.parse_date_code) {
+        const d = XLSX.SSF.parse_date_code(raw);
+        if (d) return new Date(d.y, (d.m || 1) - 1, d.d || 1, d.H || 0, d.M || 0, Math.floor(d.S || 0));
+      }
+    } catch (e) {}
+    return null;
+  }
+  const s = String(raw).trim();
+  if (!s) return null;
+  let m;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/))) {
+    return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+  }
+  if ((m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/))) {
+    let dd = +m[1], mm = +m[2];
+    if (dd > 12 && mm <= 12) { /* DD-MM */ }
+    else if (mm > 12 && dd <= 12) { const t = dd; dd = mm; mm = t; }
+    return new Date(+m[3], mm - 1, dd, +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+  }
+  const nd = new Date(s);
+  if (!isNaN(nd.getTime())) return nd;
+  return null;
+}
+
+const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+function monthTag(d) { return MONTH_ABBR[d.getMonth()] + '-' + d.getFullYear(); }
+
+function resolveRegion(regionFromSource, dealerName, dealerRegionMap) {
+  const direct = trimVal(regionFromSource);
+  if (direct) return direct;
+  const key = trimVal(dealerName).toLowerCase();
+  if (key && dealerRegionMap.has(key)) return dealerRegionMap.get(key);
+  return '';
+}
+
+function resolveCategory(modelGroup, modelVariant, rules) {
+  const hay = (trimVal(modelGroup) + ' ' + trimVal(modelVariant)).toLowerCase();
+  for (const r of rules) {
+    if (r.pattern && hay.includes(r.pattern.toLowerCase())) return r.category || 'UNKNOWN';
+  }
+  return 'UNKNOWN';
+}
+
+function isRowEmpty(row) {
+  return !row || row.every(c => trimVal(c) === '');
+}
+
+/* ============================================================================
+   GLOBAL STATE
+   ============================================================================ */
+let selectedInputFiles = [];
+let selectedInputLabel = '';
+let cachedWorkbookFiles = null;
+const parsedWorkbookFullCache = new Map();
+let deletedTabKeys = new Set();
+const sheetEditCache = new Map();
+
+const state = {
+  output: { Enquiry: [], Booking: [], Retail: [], Finance: [], Accessories: [], RawData: [] },
+  rawColumns: { Finance: [], Accessories: [], RawData: [] },
+  processingLog: [],
+  errorLog: []
+};
+
+const rawState = { categories: {}, summary: [], perSheet: [] };
+
+const ENQUIRY_COLUMNS = ['Month', 'Model Group', 'Model Varraint', 'Contact_Number', 'Source', 'Enquiry_Date', 'Enquiry Number', 'Dealer', 'Location', 'Region', 'PV/CV/EV'];
+const BOOKING_COLUMNS = ['Month', 'Booking Date and Time', 'Booking Status', 'Contact_Number', 'Model Group', 'Model Variant', 'Dealership', 'Location', 'Region', 'PV/CV/EV'];
+const RETAIL_COLUMNS  = ['Month', 'Invoice Date and Time', 'Invoice Status', 'Contact_Number', 'Model Group', 'Model Variant', 'DELR_NAME_DESC', 'Location', 'Region', 'PV/CV/EV'];
+
+/* ============================================================================
+   AI CONVERSION FUNNEL & INTELLIGENCE UPDATER
+   ============================================================================ */
+function updateAiFunnelIntelligence() {
+  const enqCount = state.output.Enquiry.length;
+  const bkgCount = state.output.Booking.length;
+  const rtlCount = state.output.Retail.length;
+
+  if (enqCount || bkgCount || rtlCount) {
+    document.getElementById('aiFunnelCard').style.display = 'block';
+    document.getElementById('aiCountEnq').textContent = enqCount.toLocaleString();
+    document.getElementById('aiCountBkg').textContent = bkgCount.toLocaleString();
+    document.getElementById('aiCountRtl').textContent = rtlCount.toLocaleString();
+
+    const bkgRate = enqCount > 0 ? ((bkgCount / enqCount) * 100).toFixed(1) : 0;
+    const rtlRate = bkgCount > 0 ? ((rtlCount / bkgCount) * 100).toFixed(1) : 0;
+    const overallRate = enqCount > 0 ? ((rtlCount / enqCount) * 100).toFixed(1) : 0;
+
+    document.getElementById('aiRateBkg').textContent = bkgRate + '% of Enquiries';
+    document.getElementById('aiRateRtl').textContent = rtlRate + '% of Bookings';
+    document.getElementById('aiFunnelOverall').textContent = 'Overall Conversion (Enq → Retail): ' + overallRate + '%';
+
+    // Top Model Analysis
+    const modelCounts = {};
+    [...state.output.Enquiry, ...state.output.Booking, ...state.output.Retail].forEach(r => {
+      const m = r['Model Group'] || r['Model Variant'] || '';
+      if (m) modelCounts[m] = (modelCounts[m] || 0) + 1;
+    });
+    const topModel = Object.entries(modelCounts).sort((a,b) => b[1] - a[1])[0];
+    if (topModel) {
+      document.getElementById('aiTopModelPill').textContent = '🚗 Top Model: ' + topModel[0] + ' (' + topModel[1].toLocaleString() + ' records)';
+    }
+
+    // Top Dealer Analysis
+    const dealerCounts = {};
+    [...state.output.Enquiry, ...state.output.Booking, ...state.output.Retail].forEach(r => {
+      const d = r['Dealer'] || r['Dealership'] || r['DELR_NAME_DESC'] || '';
+      if (d) dealerCounts[d] = (dealerCounts[d] || 0) + 1;
+    });
+    const topDealer = Object.entries(dealerCounts).sort((a,b) => b[1] - a[1])[0];
+    if (topDealer) {
+      document.getElementById('aiTopDealerPill').textContent = '🏢 Top Dealership: ' + topDealer[0] + ' (' + topDealer[1].toLocaleString() + ' records)';
+    }
+
+    // Contact Number Quality Score
+    let totalPhones = 0, validPhones = 0;
+    [...state.output.Enquiry, ...state.output.Booking, ...state.output.Retail].forEach(r => {
+      const p = r['Contact_Number'];
+      if (p) {
+        totalPhones++;
+        if (/^[6-9]\d{9}$/.test(p)) validPhones++;
+      }
+    });
+    const phoneQuality = totalPhones > 0 ? Math.round((validPhones / totalPhones) * 100) : 100;
+    document.getElementById('aiPhoneValidPill').textContent = '📱 Contact Data Quality: ' + phoneQuality + '% (' + validPhones.toLocaleString() + ' valid)';
+    document.getElementById('kpiQuality').textContent = phoneQuality + '%';
+    document.getElementById('kpiQualitySub').textContent = validPhones.toLocaleString() + ' valid mobile numbers';
+  } else {
+    document.getElementById('aiFunnelCard').style.display = 'none';
+  }
+}
+
+function updateDashboardKPIs() {
+  document.getElementById('kpiFiles').textContent = selectedInputFiles.length || 0;
+  document.getElementById('kpiFilesSub').textContent = selectedInputFiles.length ? (selectedInputFiles.length + ' files loaded') : 'Awaiting upload';
+
+  const sheetCount = rawState.perSheet.length || document.querySelectorAll('#tabNameMapTable tbody tr').length || 0;
+  document.getElementById('kpiSheets').textContent = sheetCount;
+  document.getElementById('kpiSheetsSub').textContent = sheetCount ? (sheetCount + ' sheets registered') : '0 categorised';
+
+  let totalRawRows = 0;
+  Object.values(rawState.categories).forEach(c => totalRawRows += (c.rows ? c.rows.length : 0));
+  let totalCleanRows = state.output.Enquiry.length + state.output.Booking.length + state.output.Retail.length;
+  let totalRows = totalRawRows || totalCleanRows;
+  document.getElementById('kpiRows').textContent = totalRows.toLocaleString();
+  document.getElementById('kpiRowsSub').textContent = totalCleanRows ? (totalCleanRows.toLocaleString() + ' cleaned rows') : (totalRawRows ? 'Raw consolidated' : 'Ready to process');
+  
+  updateAiFunnelIntelligence();
+}
+
+/* ============================================================================
+   ZIP EXTRACTION & WORKBOOK SCAN
+   ============================================================================ */
+async function getWorkbookFiles() {
+  if (!cachedWorkbookFiles) cachedWorkbookFiles = await buildWorkbookFileList(selectedInputFiles);
+  return cachedWorkbookFiles;
+}
+function yieldToBrowser(ms = 0) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getWorkbookFull(f) {
+  if (parsedWorkbookFullCache.has(f.name)) return parsedWorkbookFullCache.get(f.name);
+  const wb = readWorkbookFull(f);
+  parsedWorkbookFullCache.set(f.name, wb);
+  return wb;
+}
+function resetWorkbookPerfCache() {
+  cachedWorkbookFiles = null;
+  parsedWorkbookFullCache.clear();
+}
+
+async function extractZipRecursive(source, prefix, filesOut) {
+  const zip = await JSZip.loadAsync(source);
+  const names = Object.keys(zip.files);
+  for (const relPath of names) {
+    const entry = zip.files[relPath];
+    if (entry.dir) continue;
+    const lower = relPath.toLowerCase();
+    try {
+      if (lower.endsWith('.zip')) {
+        const buf = await entry.async('arraybuffer');
+        logLine('  Found nested ZIP: ' + prefix + relPath, 'l-warn');
+        await yieldToBrowser(0);
+        await extractZipRecursive(buf, prefix + relPath + ' > ', filesOut);
+      } else if (lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.xlsm')) {
+        const buf = await entry.async('arraybuffer');
+        filesOut.push({ name: prefix + relPath, buffer: buf, kind: 'xlsx' });
+      } else if (lower.endsWith('.csv')) {
+        const text = await entry.async('string');
+        filesOut.push({ name: prefix + relPath, text, kind: 'csv' });
+      }
+    } catch (e) {
+      state.errorLog.push({ file: prefix + relPath, sheet: '', type: 'EXTRACT_ERROR', detail: String(e.message || e) });
+    }
+  }
+}
+
+async function buildWorkbookFileList(items) {
+  const filesOut = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const file = item.file;
+    const label = item.relPath || file.name;
+    const lower = file.name.toLowerCase();
+    try {
+      if (lower.endsWith('.zip')) {
+        const buf = await file.arrayBuffer();
+        await yieldToBrowser(0);
+        await extractZipRecursive(buf, label + ' > ', filesOut);
+      } else if (lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.xlsm')) {
+        const buf = await file.arrayBuffer();
+        filesOut.push({ name: label, buffer: buf, kind: 'xlsx' });
+      } else if (lower.endsWith('.csv')) {
+        const text = await file.text();
+        filesOut.push({ name: label, text, kind: 'csv' });
+      }
+    } catch (e) {
+      state.errorLog.push({ file: label, sheet: '', type: 'EXTRACT_ERROR', detail: String(e.message || e) });
+    }
+    await yieldToBrowser(0);
+  }
+  return filesOut;
+}
+
+function readWorkbookLite(f) {
+  return f.kind === 'csv' ? XLSX.read(f.text, { type: 'string', bookSheets: true }) : XLSX.read(f.buffer, { type: 'array', bookSheets: true });
+}
+function readWorkbookFull(f) {
+  return f.kind === 'csv' ? XLSX.read(f.text, { type: 'string', cellDates: true }) : XLSX.read(f.buffer, { type: 'array', cellDates: true });
+}
+
+/* ============================================================================
+   FILE INGESTION & UI EVENT HANDLERS
+   ============================================================================ */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const folderInput = document.getElementById('folderInput');
+dropzone.addEventListener('click', () => fileInput.click());
+['dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+dropzone.addEventListener('drop', e => {
+  if (e.dataTransfer.files && e.dataTransfer.files.length) {
+    handleFiles(Array.from(e.dataTransfer.files).map(f => ({ file: f })));
+  }
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFiles(Array.from(e.target.files).map(f => ({ file: f })));
+  e.target.value = '';
+});
+folderInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFiles(Array.from(e.target.files).map(f => ({ file: f, relPath: f.webkitRelativePath || f.name })));
+  e.target.value = '';
+});
+
+const SUPPORTED_EXT = /\.(zip|xlsx|xls|xlsm|csv)$/i;
+
+async function handleFiles(items) {
+  const supported = items.filter(it => SUPPORTED_EXT.test(it.file.name));
+  if (!supported.length) { alert('No supported files (.zip, .xlsx, .xls, .xlsm, .csv) found in that selection.'); return; }
+  selectedInputFiles = supported;
+  selectedInputLabel = supported.length === 1 ? supported[0].file.name : (supported.length + ' files selected');
+  document.getElementById('fileNamePill').innerHTML = '<span class="filename-pill">✨ AI Scanning: ' + escapeHtml(selectedInputLabel) + '…</span>';
+  document.getElementById('processBtn').disabled = true;
+  document.getElementById('rawConsolidateBtn').disabled = true;
+
+  rawState.categories = {};
+  rawState.summary = [];
+  rawState.perSheet = [];
+  sheetEditCache.clear();
+  resetWorkbookPerfCache();
+
+  document.getElementById('rawDownloadBtn').style.display = 'none';
+  document.getElementById('rawSummaryWrap').style.display = 'none';
+  resetRawPreview();
+  document.getElementById('downloadBtn').style.display = 'none';
+  resetLogSections();
+  document.getElementById('resumeBanner').style.display = 'none';
+
+  await yieldToBrowser(10);
+  await scanSheetNames();
+  await yieldToBrowser(10);
+  await scanDealerNames();
+
+  document.getElementById('fileNamePill').innerHTML = '<span class="filename-pill">✓ ' + escapeHtml(selectedInputLabel) + '</span>';
+  document.getElementById('rawConsolidateBtn').disabled = false;
+  updateDashboardKPIs();
+}
+
+function guessCategoryFromName(sheetName, fileName, headers) {
+  const text = (String(fileName || '') + ' ' + String(sheetName || '')).toLowerCase();
+  
+  if (text.includes('book') || text.includes('bkg') || text.includes('order') || text.includes('allotment') || text.includes('so_') || text.includes('so ')) return 'Booking';
+  if (text.includes('enq') || text.includes('inq') || text.includes('lead') || text.includes('prospect') || text.includes('inquiry')) return 'Enquiry';
+  if (text.includes('retail') || text.includes('rtl') || text.includes('ret_') || text.includes('invoice') || text.includes('inv_') || text.includes('inv ') ||
+      text.includes('sale') || text.includes('billing') || text.includes('bill_') || text.includes('deliv') || text.includes('gate') || text.includes('do_') || text.includes('do ')) return 'Retail';
+  if (text.includes('fin') || text.includes('loan')) return 'Finance';
+  if (text.includes('acc') || text.includes('vas') || text.includes('part')) return 'Accessories';
+
+  // If the sheet name/file name is generic (e.g., "Sheet1", "Data"), inspect columns
+  if (headers && headers.length) {
+    const typeInfo = detectReportType(headers, sheetName);
+    if (typeInfo && typeInfo.type && typeInfo.type !== 'UNKNOWN_REPORT') {
+      return typeInfo.type;
+    }
+  }
+  return 'Other';
+}
+
+async function scanSheetNames() {
+  const tbody = document.querySelector('#tabNameMapTable tbody');
+  tbody.innerHTML = '';
+  if (!selectedInputFiles.length) return;
+  const seen = new Set();
+  try {
+    const files = await getWorkbookFiles();
+    for (const f of files) {
+      await yieldToBrowser(0);
+      let wb;
+      try { wb = getWorkbookFull(f); } catch (e) { continue; }
+      const sNames = wb.SheetNames || [];
+      for (const sn of sNames) {
+        const key = f.name + '||' + sn;
+        if (seen.has(key) || deletedTabKeys.has(key)) continue;
+        seen.add(key);
+
+        let sampleHeaders = [];
+        try {
+          const ws = wb.Sheets[sn];
+          if (ws) {
+            const sampleRows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '', range: 0 });
+            if (sampleRows && sampleRows.length) {
+              const hInfo = detectHeaderRow(sampleRows.slice(0, 15), 15);
+              sampleHeaders = hInfo ? hInfo.headers : (sampleRows[0] || []);
+            }
+          }
+        } catch(e) {}
+
+        const cat = guessCategoryFromName(sn, f.name, sampleHeaders);
+        addTabNameRow(f.name, sn, cat);
+      }
+    }
+  } catch (e) {}
+  if (!seen.size) addTabNameRow('', '', 'Other');
+}
+
+function addTabNameRow(fileName, sheetName, category) {
+  const tbody = document.querySelector('#tabNameMapTable tbody');
+  const tr = document.createElement('tr');
+  tr.dataset.tabKey = (fileName || '') + '||' + (sheetName || '');
+  const cat = category || 'Other';
+  const cats = ['Enquiry', 'Booking', 'Retail', 'Finance', 'Accessories', 'Other', 'Skip'];
+  const options = cats.map(o => '<option value="' + o + '"' + (o === cat ? ' selected' : '') + '>' + o + '</option>').join('');
+  tr.innerHTML = '<td><input type="text" class="mapFile" value="' + String(fileName || '').replace(/"/g, '&quot;') + '"/></td>' +
+                 '<td><input type="text" class="mapA" value="' + String(sheetName || '').replace(/"/g, '&quot;') + '"/></td>' +
+                 '<td><select class="mapB">' + options + '</select></td>' +
+                 '<td class="sv-actions-cell"><button type="button" class="accent small" onclick="viewSheetData(this)">👁 View/Edit</button> <button type="button" class="secondary small" onclick="removeTabNameRow(this)">✕</button></td>';
+  tbody.appendChild(tr);
+}
+
+function removeTabNameRow(btn) {
+  const tr = btn.closest('tr');
+  if (!tr) return;
+  if (tr.dataset.tabKey) deletedTabKeys.add(tr.dataset.tabKey);
+  tr.remove();
+  updateDashboardKPIs();
+}
+
+async function scanDealerNames() {
+  const tbody = document.querySelector('#dealerMapTable tbody');
+  const existing = readMapTable('dealerMapTable');
+  const existingByKey = new Map(existing.map(([a, b]) => [a.toLowerCase(), { name: a, region: b }]));
+
+  if (!selectedInputFiles.length) return;
+
+  const found = new Map();
+  try {
+    const files = await getWorkbookFiles();
+    for (const f of files) {
+      await yieldToBrowser(0);
+      let wb;
+      try { wb = getWorkbookFull(f); } catch (e) { continue; }
+      for (const sheetName of wb.SheetNames) {
+        try {
+          const ws = wb.Sheets[sheetName];
+          const sampleRows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '', range: 0 });
+          if (!sampleRows.length) continue;
+          const headerInfo = detectHeaderRow(sampleRows.slice(0, 15), 15);
+          if (!headerInfo) continue;
+          const normHeaderList = headerInfo.headers.map((h, idx) => ({ raw: h, norm: normalizeHeader(h), idx })).filter(h => h.norm);
+          const m = findBestSourceForFieldWithIndex('DEALER_NAME', normHeaderList, sampleRows.slice(headerInfo.index + 1, headerInfo.index + 10));
+          if (!m) continue;
+          const sampleData = sampleRows.slice(headerInfo.index + 1, headerInfo.index + 25);
+          sampleData.forEach(row => {
+            const val = trimVal(row[m.idx]);
+            if (val && !found.has(val.toLowerCase())) found.set(val.toLowerCase(), val);
+          });
+        } catch (e) {}
+      }
+    }
+  } catch (e) {}
+
+  const merged = new Map();
+  found.forEach((name, key) => {
+    const prev = existingByKey.get(key);
+    merged.set(key, { name, region: prev ? prev.region : '' });
+  });
+  existingByKey.forEach((val, key) => { if (!merged.has(key)) merged.set(key, val); });
+
+  tbody.innerHTML = '';
+  const rows = [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
+  if (!rows.length) { addMapRow('dealerMapTable', '', ''); return; }
+  rows.forEach(r => addMapRow('dealerMapTable', r.name, r.region));
+}
+
+function addMapRow(tableId, valA, valB) {
+  const tbody = document.querySelector('#' + tableId + ' tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = '<td><input type="text" class="mapA" value="' + (valA || '').replace(/"/g, '&quot;') + '"/></td>' +
+                 '<td><input type="text" class="mapB" value="' + (valB || '').replace(/"/g, '&quot;') + '"/></td>' +
+                 '<td><button type="button" class="secondary small" onclick="this.closest(\'tr\').remove()">✕</button></td>';
+  tbody.appendChild(tr);
+}
+addMapRow('dealerMapTable', '', '');
+addMapRow('modelMapTable', 'EV', 'EV');
+addMapRow('modelMapTable', '', '');
+
+function readMapTable(tableId) {
+  const rows = document.querySelectorAll('#' + tableId + ' tbody tr');
+  const out = [];
+  rows.forEach(r => {
+    const a = r.querySelector('.mapA').value.trim();
+    const b = r.querySelector('.mapB').value.trim();
+    if (a) out.push([a, b]);
+  });
+  return out;
+}
+
+function readTabNameMapTable() {
+  const rows = document.querySelectorAll('#tabNameMapTable tbody tr');
+  const out = [];
+  rows.forEach(r => {
+    const file = r.querySelector('.mapFile').value.trim();
+    const sheet = r.querySelector('.mapA').value.trim();
+    const cat = r.querySelector('.mapB').value.trim();
+    if (sheet) out.push([file, sheet, cat]);
+  });
+  return out;
+}
+
+function exportMap(tableId, filename) {
+  const data = tableId === 'tabNameMapTable' ? readTabNameMapTable() : readMapTable(tableId);
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+}
+
+function importMap(evt, tableId) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      document.querySelector('#' + tableId + ' tbody').innerHTML = '';
+      data.forEach(entry => {
+        if (tableId === 'tabNameMapTable') {
+          if (entry.length >= 3) addTabNameRow(entry[0], entry[1], entry[2]);
+          else addTabNameRow('', entry[0], entry[1]);
+        } else {
+          addMapRow(tableId, entry[0], entry[1]);
+        }
+      });
+      updateDashboardKPIs();
+    } catch (e) { alert('Invalid mapping JSON file.'); }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+
+function logLine(msg, cls) {
+  const el = document.getElementById('logConsole');
+  el.style.display = 'block';
+  const div = document.createElement('div');
+  if (cls) div.className = cls;
+  div.textContent = msg;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function rawLog(msg, cls) {
+  const el = document.getElementById('rawLogConsole');
+  el.style.display = 'block';
+  const div = document.createElement('div');
+  if (cls) div.className = cls;
+  div.textContent = msg;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ============================================================================
+   INTEGRATED RAW CONSOLIDATION (Incorporates Saved In-line Edits & Smart Align)
+   ============================================================================ */
+function categorizeSheetName(fileName, sheetName, nameMap, headers) {
+  const key = String(fileName || '').trim().toLowerCase() + '||' + String(sheetName || '').trim().toLowerCase();
+  if (nameMap.has(key)) return nameMap.get(key) || 'Other';
+  return guessCategoryFromName(sheetName, fileName, headers);
+}
+
+async function runRawConsolidation() {
+  if (!selectedInputFiles.length) return;
+  document.getElementById('rawConsolidateBtn').disabled = true;
+  document.getElementById('rawDownloadBtn').style.display = 'none';
+  document.getElementById('rawLogConsole').innerHTML = '';
+  document.getElementById('rawSummaryWrap').style.display = 'none';
+  resetRawPreview();
+  document.getElementById('processBtn').disabled = true;
+  document.getElementById('downloadBtn').style.display = 'none';
+  resetLogSections();
+
+  rawState.categories = {};
+  rawState.summary = [];
+  rawState.perSheet = [];
+  const perSheetSummary = rawState.summary;
+
+  const nameMap = new Map(readTabNameMapTable().map(([file, sheet, cat]) =>
+    [file.trim().toLowerCase() + '||' + sheet.trim().toLowerCase(), cat]));
+
+  rawLog('🚀 Starting Raw Consolidation: ' + selectedInputLabel);
+  let files = [];
+  try {
+    files = await getWorkbookFiles();
+  } catch (e) {
+    rawLog('Failed to read input files: ' + e.message, 'l-err');
+    document.getElementById('rawConsolidateBtn').disabled = false;
+    return;
+  }
+  rawLog('Found ' + files.length + ' workbook(s). Scanning and merging sheets...', 'l-ok');
+
+  for (const f of files) {
+    await yieldToBrowser(0);
+    let wb;
+    try {
+      wb = getWorkbookFull(f);
+    } catch (e) {
+      rawLog('Failed to read ' + f.name + ': ' + e.message, 'l-err');
+      continue;
+    }
+
+    for (const sheetName of wb.SheetNames) {
+      await yieldToBrowser(0);
+      try {
+        const sheetKey = f.name + '||' + sheetName;
+        let rows2D = [];
+
+        if (sheetEditCache.has(sheetKey)) {
+          const cached = sheetEditCache.get(sheetKey);
+          rows2D = [cached.columns, ...cached.rows];
+          rawLog('  [Edited] Using customized data grid for: ' + f.name + ' :: ' + sheetName, 'l-warn');
+        } else {
+          const ws = wb.Sheets[sheetName];
+          rows2D = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+        }
+
+        if (!rows2D.length) continue;
+
+        let headerRowIndex = 0;
+        const headerInfo = detectHeaderRow(rows2D, 15);
+        if (headerInfo && headerInfo.index >= 0 && headerInfo.confidence >= 35) {
+          headerRowIndex = headerInfo.index;
+        }
+
+        const rawHeader = (rows2D[headerRowIndex] || []).map(h => trimVal(h));
+        const category = categorizeSheetName(f.name, sheetName, nameMap, rawHeader);
+
+        if (category === 'Skip') {
+          perSheetSummary.push({ file: f.name, sheet: sheetName, category: 'Skip', rows: 0 });
+          rawLog('  · ' + f.name + ' :: ' + sheetName + ' → Skip (excluded)', 'l-warn');
+          continue;
+        }
+
+        const dataRows = rows2D.slice(headerRowIndex + 1);
+
+        if (!rawState.categories[category]) rawState.categories[category] = { columns: [], rows: [] };
+        const cat = rawState.categories[category];
+        
+        rawHeader.forEach(h => { if (h && !cat.columns.includes(h)) cat.columns.push(h); });
+
+        let sheetValidCount = 0;
+        for (let rIdx = 0; rIdx < dataRows.length; rIdx++) {
+          const row = dataRows[rIdx];
+          if (isRowEmpty(row)) continue;
+          const obj = { '__SourceFile': f.name, '__SourceSheet': sheetName, '__SourceRow': headerRowIndex + rIdx + 2 };
+          rawHeader.forEach((h, idx) => { if (h) obj[h] = row[idx] == null ? '' : row[idx]; });
+          cat.rows.push(obj);
+          sheetValidCount++;
+          if (rIdx % 500 === 0) await yieldToBrowser(0);
+        }
+
+        rawState.perSheet.push({ file: f.name, sheet: sheetName, category, rows2D });
+        perSheetSummary.push({ file: f.name, sheet: sheetName, category, rows: sheetValidCount });
+        rawLog('  · ' + f.name + ' :: ' + sheetName + ' → ' + category + ' (' + sheetValidCount.toLocaleString() + ' rows)', 'l-ok');
+
+      } catch (e) {
+        rawLog('  Error in sheet ' + sheetName + ' of ' + f.name + ': ' + e.message, 'l-err');
+      }
+    }
+  }
+
+  renderRawSummary(perSheetSummary);
+  renderRawPreview();
+  rawLog('✓ Raw consolidation complete! All sheets merged.', 'l-ok');
+  document.getElementById('rawConsolidateBtn').disabled = false;
+  document.getElementById('rawDownloadBtn').style.display = 'inline-flex';
+  document.getElementById('processBtn').disabled = !rawState.perSheet.length;
+  updateDashboardKPIs();
+}
+
+function renderRawSummary(perSheetSummary) {
+  const cols = ['File', 'Sheet', 'Category', 'Rows Merged'];
+  const thead = document.querySelector('#rawSummaryTable thead');
+  const tbody = document.querySelector('#rawSummaryTable tbody');
+  thead.innerHTML = '<tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr>';
+  tbody.innerHTML = perSheetSummary.map(r =>
+    '<tr><td>' + escapeHtml(r.file) + '</td><td>' + escapeHtml(r.sheet) + '</td><td><span class="tag tag-ok">' +
+    escapeHtml(r.category) + '</span></td><td>' + r.rows.toLocaleString() + '</td></tr>'
+  ).join('');
+  document.getElementById('rawSummaryWrap').style.display = 'block';
+}
+
+/* ============================================================================
+   LIVE PREVIEW FOR RAW CONSOLIDATED DATA (With Search & Interactive Pagination)
+   ============================================================================ */
+let rawCurrentPage = 1;
+let rawPageSize = 50;
+let activeRawPreviewTab = null;
+let rawFilterDebounceTimer = null;
+
+function resetRawPreview() {
+  activeRawPreviewTab = null;
+  rawCurrentPage = 1;
+  document.getElementById('rawPreviewWrap').style.display = 'none';
+  document.getElementById('rawPreviewTabs').innerHTML = '';
+  document.getElementById('rawPreviewCountLine').textContent = '';
+  document.querySelector('#rawPreviewTable thead').innerHTML = '';
+  document.querySelector('#rawPreviewTable tbody').innerHTML = '';
+}
+
+function selectRawPreviewTab(key) {
+  activeRawPreviewTab = key;
+  rawCurrentPage = 1;
+  renderRawPreview();
+}
+
+function debouncedFilterRawPreviewTable() {
+  clearTimeout(rawFilterDebounceTimer);
+  rawFilterDebounceTimer = setTimeout(() => {
+    rawCurrentPage = 1;
+    renderRawPreview();
+  }, 120);
+}
+
+function renderRawPreview() {
+  const keys = Object.keys(rawState.categories);
+  if (!keys.length) { document.getElementById('rawPreviewWrap').style.display = 'none'; return; }
+
+  if (!activeRawPreviewTab || !keys.includes(activeRawPreviewTab)) {
+    activeRawPreviewTab = keys[0];
+  }
+
+  document.getElementById('rawPreviewTabs').innerHTML = keys.map(k =>
+    '<button type="button" class="' + (k === activeRawPreviewTab ? 'accent' : 'secondary') + ' small" onclick="selectRawPreviewTab(\'' + escapeHtml(k).replace(/'/g, "\\'") + '\')">' +
+    escapeHtml(k) + ' (' + rawState.categories[k].rows.length.toLocaleString() + ')</button>'
+  ).join('');
+
+  const cat = rawState.categories[activeRawPreviewTab];
+  const columns = ['__SourceFile', '__SourceSheet', '__SourceRow'].concat(cat.columns);
+  
+  const searchVal = (document.getElementById('rawSearchInput') ? document.getElementById('rawSearchInput').value : '').toLowerCase().trim();
+  let filteredRows = cat.rows;
+  if (searchVal) {
+    filteredRows = cat.rows.filter(r => columns.some(c => String(r[c] || '').toLowerCase().includes(searchVal)));
+  }
+
+  const total = filteredRows.length;
+  const totalPages = rawPageSize === 'All' ? 1 : Math.max(1, Math.ceil(total / rawPageSize));
+  if (rawCurrentPage > totalPages) rawCurrentPage = totalPages;
+
+  const startIdx = rawPageSize === 'All' ? 0 : (rawCurrentPage - 1) * rawPageSize;
+  const endIdx = rawPageSize === 'All' ? total : Math.min(total, startIdx + rawPageSize);
+  const shown = filteredRows.slice(startIdx, endIdx);
+
+  document.getElementById('rawPreviewCountLine').textContent =
+    'Showing ' + (total > 0 ? (startIdx + 1) : 0) + '–' + endIdx + ' of ' + total.toLocaleString() + ' row(s) in ' + activeRawPreviewTab + (searchVal ? ' (filtered)' : '') + '.';
+
+  // Render pagination bar
+  const pBar = document.getElementById('rawPaginationControls');
+  if (pBar) {
+    pBar.innerHTML = 
+      '<button type="button" class="secondary small" ' + (rawCurrentPage <= 1 ? 'disabled' : '') + ' onclick="changeRawPage(' + (rawCurrentPage - 1) + ')">‹ Prev</button>' +
+      '<span style="padding:0 4px; font-weight:600;">' + rawCurrentPage + ' / ' + totalPages + '</span>' +
+      '<button type="button" class="secondary small" ' + (rawCurrentPage >= totalPages ? 'disabled' : '') + ' onclick="changeRawPage(' + (rawCurrentPage + 1) + ')">Next ›</button>' +
+      '<select class="page-select" onchange="changeRawPageSize(this.value)">' +
+        [25, 50, 100, 250, 500].map(s => '<option value="' + s + '"' + (rawPageSize == s ? ' selected' : '') + '>' + s + ' / page</option>').join('') +
+        '<option value="All"' + (rawPageSize === 'All' ? ' selected' : '') + '>All</option>' +
+      '</select>';
+  }
+
+  const thead = document.querySelector('#rawPreviewTable thead');
+  const tbody = document.querySelector('#rawPreviewTable tbody');
+  thead.innerHTML = '<tr>' + columns.map(c => '<th>' + escapeHtml(c) + '</th>').join('') + '</tr>';
+  tbody.innerHTML = shown.map(r =>
+    '<tr>' + columns.map(c => '<td>' + escapeHtml(r[c] == null ? '' : String(r[c])) + '</td>').join('') + '</tr>'
+  ).join('');
+
+  document.getElementById('rawPreviewWrap').style.display = 'block';
+}
+
+function changeRawPage(p) {
+  rawCurrentPage = p;
+  renderRawPreview();
+}
+function changeRawPageSize(size) {
+  rawPageSize = size === 'All' ? 'All' : parseInt(size, 10);
+  rawCurrentPage = 1;
+  renderRawPreview();
+}
+
+/* ============================================================================
+   ULTRA-FAST NON-BLOCKING EXCEL EXPORT ENGINE
+   ============================================================================ */
+function fastJsonToSheet(rows, columns) {
+  if (!rows || !rows.length) {
+    return XLSX.utils.aoa_to_sheet([columns || []]);
+  }
+  const cols = columns || Object.keys(rows[0]);
+  const numCols = cols.length;
+  const numRows = rows.length;
+  const aoa = new Array(numRows + 1);
+  aoa[0] = cols;
+  for (let i = 0; i < numRows; i++) {
+    const r = rows[i];
+    const rowArr = new Array(numCols);
+    for (let c = 0; c < numCols; c++) {
+      rowArr[c] = r[cols[c]] ?? '';
+    }
+    aoa[i + 1] = rowArr;
+  }
+  return XLSX.utils.aoa_to_sheet(aoa);
+}
+
+async function fastDownloadWorkbook(wb, filename, btn, origText) {
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Generating Excel…';
+    }
+    await yieldToBrowser(20);
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array', compression: false });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 1500);
+  } catch (err) {
+    console.error('Fast XLSX export error:', err);
+    XLSX.writeFile(wb, filename);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText || '📥 Download Excel';
+    }
+  }
+}
+
+async function downloadRawConsolidated() {
+  const btn = event ? (event.target.closest('button') || event.target) : null;
+  const origText = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Building Raw Excel…'; }
+  await yieldToBrowser(20);
+
+  const wb = XLSX.utils.book_new();
+  if (rawState.summary.length) {
+    const summaryHeader = ['file', 'sheet', 'category', 'rows'];
+    const ws = fastJsonToSheet(rawState.summary, summaryHeader);
+    XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+  }
+  for (const cat of Object.keys(rawState.categories)) {
+    const c = rawState.categories[cat];
+    const header = ['__SourceFile', '__SourceSheet', '__SourceRow'].concat(c.columns);
+    const ws = fastJsonToSheet(c.rows, header);
+    XLSX.utils.book_append_sheet(wb, ws, String(cat).substring(0, 31));
+    await yieldToBrowser(0);
+  }
+  await fastDownloadWorkbook(wb, 'Raw_Consolidated_Master.xlsx', btn, origText);
+}
+
+/* ============================================================================
+   AI CLEANING & BIFURCATION PIPELINE (Section 5)
+   ============================================================================ */
+async function processSheet(fileName, sheetName, rows2D, dealerRegionMap, modelRules, assignedCategory) {
+  const rec = {
+    file: fileName, sheet: sheetName, headerRow: null, reportType: '', confidence: 0,
+    sourceRows: 0, imported: 0, skippedEmpty: 0, skippedRepeatedHeader: 0, duplicates: 0, missingCritical: 0, note: '',
+    rawHeaders: [],
+    sourceDataRows: [],
+    importedRows: [],
+    importedColumns: [],
+    skippedEmptyRows: [],
+    skippedRepeatedHeaderRows: [],
+    duplicateRows: [],
+    missingCriticalRows: []
+  };
+
+  const headerInfo = detectHeaderRow(rows2D);
+  if (!headerInfo) {
+    rec.reportType = 'UNKNOWN_REPORT'; rec.note = 'No recognizable header row found in first 30 rows';
+    rec.sourceDataRows = rows2D;
+    state.processingLog.push(rec);
+    state.errorLog.push({ file: fileName, sheet: sheetName, type: 'NO_HEADER', detail: rec.note });
+    return;
+  }
+  rec.headerRow = headerInfo.index + 1;
+
+  const typeInfo = (assignedCategory && assignedCategory !== 'Other' && assignedCategory !== 'Skip') ?
+    { type: assignedCategory, confidence: 99, matched: [] } :
+    detectReportType(headerInfo.headers, sheetName);
+  rec.reportType = typeInfo.type;
+  rec.confidence = typeInfo.confidence;
+
+  const rawDataRows = rows2D.slice(headerInfo.index + 1);
+  rec.sourceRows = rawDataRows.length;
+  rec.sourceDataRows = rawDataRows;
+
+  const { clean: dataRows, repeatedHeaderCount, repeatedRows } = stripRepeatedHeaderRows(rawDataRows);
+  rec.skippedRepeatedHeader = repeatedHeaderCount;
+  rec.skippedRepeatedHeaderRows = repeatedRows || [];
+  if (repeatedHeaderCount > 0) {
+    state.errorLog.push({
+      file: fileName, sheet: sheetName, type: 'REPEATED_HEADER_ROW',
+      detail: repeatedHeaderCount + ' repeated header row(s) found mid-sheet and excluded.'
+    });
+  }
+
+  const rawHeader = headerInfo.headers.map(h => trimVal(h));
+  rec.rawHeaders = rawHeader;
+  rawHeader.forEach(h => { if (h && !state.rawColumns.RawData.includes(h)) state.rawColumns.RawData.push(h); });
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    if (isRowEmpty(row)) continue;
+    const obj = { '__SourceFile': fileName, '__SourceSheet': sheetName, '__DetectedType': typeInfo.type };
+    rawHeader.forEach((h, idx) => { if (h) obj[h] = row[idx] == null ? '' : row[idx]; });
+    state.output.RawData.push(obj);
+    if (i % 500 === 0) await yieldToBrowser(0);
+  }
+
+  if (typeInfo.type === 'UNKNOWN_REPORT') {
+    rec.note = typeInfo.suggestedType ? ('Excluded — looks like: ' + typeInfo.suggestedType) : 'Could not classify with confidence';
+    state.processingLog.push(rec);
+    state.errorLog.push({ file: fileName, sheet: sheetName, type: 'UNKNOWN_REPORT', detail: rec.note });
+    return;
+  }
+  if (typeInfo.type === 'Finance' || typeInfo.type === 'Accessories') {
+    rec.note = 'Detected as ' + typeInfo.type + ' — captured with source columns';
+    const header = rawHeader;
+    rec.importedColumns = header;
+    header.forEach(h => { if (h && !state.rawColumns[typeInfo.type].includes(h)) state.rawColumns[typeInfo.type].push(h); });
+    let imported = 0, skippedEmpty = 0;
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+      if (isRowEmpty(row)) {
+        skippedEmpty++;
+        rec.skippedEmptyRows.push(row);
+        continue;
+      }
+      const obj = { '__SourceFile': fileName, '__SourceSheet': sheetName };
+      header.forEach((h, idx) => { if (h) obj[h] = row[idx] == null ? '' : row[idx]; });
+      state.output[typeInfo.type].push(obj);
+      rec.importedRows.push(obj);
+      imported++;
+      if (i % 500 === 0) await yieldToBrowser(0);
+    }
+    rec.imported = imported;
+    rec.skippedEmpty = skippedEmpty;
+    state.processingLog.push(rec);
+    return;
+  }
+
+  const normHeaderList = headerInfo.headers.map((h, idx) => ({ raw: h, norm: normalizeHeader(h), idx })).filter(h => h.norm);
+  const col = {};
+  const sampleRowsForPattern = dataRows.slice(0, 15);
+  ['ENQUIRY_NUMBER','ENQUIRY_DATE','ENQUIRY_TYPE','ENQUIRY_SOURCE','CONTACT_NUMBER','MODEL_GROUP','MODEL_VARIANT','DEALER_NAME','LOCATION','REGION',
+   'BOOKING_NUMBER','BOOKING_DATE','BOOKING_STATUS','INVOICE_NUMBER','INVOICE_DATE','INVOICE_STATUS'].forEach(f => {
+    const m = findBestSourceForFieldWithIndex(f, normHeaderList, sampleRowsForPattern);
+    col[f] = m ? m.idx : null;
+  });
+
+  const getv = (row, idx) => idx == null ? '' : (row[idx] == null ? '' : row[idx]);
+
+  if (typeInfo.type === 'Enquiry') {
+    rec.importedColumns = ['Month', 'Model Group', 'Model Varraint', 'Contact_Number', 'Source', 'Enquiry_Date', 'Enquiry Number', 'Dealer', 'Location', 'Region', 'PV/CV/EV'];
+  } else if (typeInfo.type === 'Booking') {
+    rec.importedColumns = ['Month', 'Booking Date and Time', 'Booking Status', 'Contact_Number', 'Model Group', 'Model Variant', 'Dealership', 'Location', 'Region', 'PV/CV/EV'];
+  } else if (typeInfo.type === 'Retail') {
+    rec.importedColumns = ['Month', 'Invoice Date and Time', 'Invoice Status', 'Contact_Number', 'Model Group', 'Model Variant', 'DELR_NAME_DESC', 'Location', 'Region', 'PV/CV/EV'];
+  }
+
+  for (let rIdx = 0; rIdx < dataRows.length; rIdx++) {
+    const row = dataRows[rIdx];
+    if (isRowEmpty(row)) {
+      rec.skippedEmpty++;
+      rec.skippedEmptyRows.push(row);
+      continue;
+    }
+
+    if (typeInfo.type === 'Enquiry') {
+      const dealer = trimVal(getv(row, col.DEALER_NAME));
+      const modelGroup = trimVal(getv(row, col.MODEL_GROUP));
+      const modelVariant = trimVal(getv(row, col.MODEL_VARIANT));
+      const enquiryNo = trimVal(getv(row, col.ENQUIRY_NUMBER));
+      const contact = cleanPhone(getv(row, col.CONTACT_NUMBER));
+      const dateRaw = getv(row, col.ENQUIRY_DATE);
+      const dateParsed = parseAnyDate(dateRaw);
+      if (dateRaw !== '' && !dateParsed) {
+        state.errorLog.push({ file: fileName, sheet: sheetName, type: 'INVALID_DATE', detail: 'Row ' + (headerInfo.index + rIdx + 2) + ': "' + dateRaw + '" (Enquiry_Date)' });
+      }
+
+      if (!enquiryNo && !contact) {
+        rec.missingCritical++;
+        rec.missingCriticalRows.push(row);
+      }
+
+      // Working Point 1: Safely pick Enquiry Type first; fallback to Enquiry Source if Enquiry Type is empty or not mapped
+      const enquiryVal = (col.ENQUIRY_TYPE != null && trimVal(getv(row, col.ENQUIRY_TYPE)))
+        ? trimVal(getv(row, col.ENQUIRY_TYPE))
+        : trimVal(getv(row, col.ENQUIRY_SOURCE));
+
+      const outObj = {
+        'Month': dateParsed ? monthTag(dateParsed) : '',
+        'Model Group': modelGroup,
+        'Model Varraint': modelVariant,
+        'Contact_Number': contact,
+        'Source': enquiryVal,
+        'Enquiry_Date': dateParsed || trimVal(dateRaw),
+        'Enquiry Number': enquiryNo,
+        'Dealer': dealer,
+        'Location': trimVal(getv(row, col.LOCATION)),
+        'Region': resolveRegion(getv(row, col.REGION), dealer, dealerRegionMap),
+        'PV/CV/EV': resolveCategory(modelGroup, modelVariant, modelRules)
+      };
+      state.output.Enquiry.push(outObj);
+      rec.importedRows.push(outObj);
+      rec.imported++;
+
+    } else if (typeInfo.type === 'Booking') {
+      const dealer = trimVal(getv(row, col.DEALER_NAME));
+      const modelGroup = trimVal(getv(row, col.MODEL_GROUP));
+      const modelVariant = trimVal(getv(row, col.MODEL_VARIANT));
+      const bookingNo = trimVal(getv(row, col.BOOKING_NUMBER));
+      const contact = cleanPhone(getv(row, col.CONTACT_NUMBER));
+      const dateRaw = getv(row, col.BOOKING_DATE);
+      const dateParsed = parseAnyDate(dateRaw);
+      if (dateRaw !== '' && !dateParsed) {
+        state.errorLog.push({ file: fileName, sheet: sheetName, type: 'INVALID_DATE', detail: 'Row ' + (headerInfo.index + rIdx + 2) + ': "' + dateRaw + '" (Booking Date)' });
+      }
+
+      if (!bookingNo && !contact) {
+        rec.missingCritical++;
+        rec.missingCriticalRows.push(row);
+      }
+
+      const outObj = {
+        'Month': dateParsed ? monthTag(dateParsed) : '',
+        'Booking Date and Time': dateParsed || trimVal(dateRaw),
+        'Booking Status': trimVal(getv(row, col.BOOKING_STATUS)),
+        'Contact_Number': contact,
+        'Model Group': modelGroup,
+        'Model Variant': modelVariant,
+        'Dealership': dealer,
+        'Location': trimVal(getv(row, col.LOCATION)),
+        'Region': resolveRegion(getv(row, col.REGION), dealer, dealerRegionMap),
+        'PV/CV/EV': resolveCategory(modelGroup, modelVariant, modelRules)
+      };
+      state.output.Booking.push(outObj);
+      rec.importedRows.push(outObj);
+      rec.imported++;
+
+    } else if (typeInfo.type === 'Retail') {
+      const dealer = trimVal(getv(row, col.DEALER_NAME));
+      const modelGroup = trimVal(getv(row, col.MODEL_GROUP));
+      const modelVariant = trimVal(getv(row, col.MODEL_VARIANT));
+      const invoiceNo = trimVal(getv(row, col.INVOICE_NUMBER));
+      const contact = cleanPhone(getv(row, col.CONTACT_NUMBER));
+      const dateRaw = getv(row, col.INVOICE_DATE);
+      const dateParsed = parseAnyDate(dateRaw);
+      if (dateRaw !== '' && !dateParsed) {
+        state.errorLog.push({ file: fileName, sheet: sheetName, type: 'INVALID_DATE', detail: 'Row ' + (headerInfo.index + rIdx + 2) + ': "' + dateRaw + '" (Invoice Date)' });
+      }
+
+      if (!invoiceNo && !contact) {
+        rec.missingCritical++;
+        rec.missingCriticalRows.push(row);
+      }
+
+      const outObj = {
+        'Month': dateParsed ? monthTag(dateParsed) : '',
+        'Invoice Date and Time': dateParsed || trimVal(dateRaw),
+        'Invoice Status': trimVal(getv(row, col.INVOICE_STATUS)),
+        'Contact_Number': contact,
+        'Model Group': modelGroup,
+        'Model Variant': modelVariant,
+        'DELR_NAME_DESC': dealer,
+        'Location': trimVal(getv(row, col.LOCATION)),
+        'Region': resolveRegion(getv(row, col.REGION), dealer, dealerRegionMap),
+        'PV/CV/EV': resolveCategory(modelGroup, modelVariant, modelRules)
+      };
+      state.output.Retail.push(outObj);
+      rec.importedRows.push(outObj);
+      rec.imported++;
+    }
+    if (rIdx % 500 === 0) await yieldToBrowser(0);
+  }
+
+  state.processingLog.push(rec);
+}
+
+async function runPipeline(startIndex) {
+  startIndex = startIndex || 0;
+  if (!rawState.perSheet.length) {
+    logConsole.style.display = 'block';
+    logLine('No consolidated raw data found — please click Consolidate Raw Data first.', 'l-err');
+    return;
+  }
+  document.getElementById('processBtn').disabled = true;
+  document.getElementById('downloadBtn').style.display = 'none';
+  document.getElementById('resumeBanner').style.display = 'none';
+
+  if (startIndex === 0) {
+    resetLogSections();
+    resetPreview();
+    logConsole.innerHTML = '';
+    state.output = { Enquiry: [], Booking: [], Retail: [], Finance: [], Accessories: [], RawData: [] };
+    state.rawColumns = { Finance: [], Accessories: [], RawData: [] };
+    state.processingLog = [];
+    state.errorLog = [];
+  } else {
+    logLine('Resuming pipeline from sheet ' + (startIndex + 1) + '…', 'l-warn');
+  }
+
+  const dealerRegionMap = new Map(readMapTable('dealerMapTable').map(([a, b]) => [a.toLowerCase(), b]));
+  const modelRules = readMapTable('modelMapTable').map(([pattern, category]) => ({ pattern, category }));
+  const items = rawState.perSheet;
+
+  logLine('✨ Processing ' + items.length + ' sheet(s) through AI Semantic Ingestion Engine...', 'l-ai');
+  document.getElementById('statusText').textContent = 'AI Processing…';
+
+  for (let fi = startIndex; fi < items.length; fi++) {
+    const it = items[fi];
+    document.getElementById('statusText').textContent = 'AI Processing (' + (fi + 1) + '/' + items.length + '): ' + it.file + ' :: ' + it.sheet;
+    await yieldToBrowser(0);
+    try {
+      await processSheet(it.file, it.sheet, it.rows2D, dealerRegionMap, modelRules, it.category);
+      const last = state.processingLog[state.processingLog.length - 1];
+      if (last) {
+        const tag = last.reportType === 'UNKNOWN_REPORT' ? 'l-warn' : (last.imported ? 'l-ok' : '');
+        logLine('  ✨ ' + it.file + ' :: ' + it.sheet + ' → ' + last.reportType + ' (' + last.confidence + '% AI confidence), bifurcated ' + last.imported.toLocaleString() + ' rows', tag);
+      }
+    } catch (e) {
+      logLine('  Error in sheet ' + it.sheet + ' of ' + it.file + ': ' + e.message, 'l-err');
+      state.errorLog.push({ file: it.file, sheet: it.sheet, type: 'PROCESSING_ERROR', detail: String(e.message || e) });
+    }
+  }
+
+  renderPreview();
+  document.getElementById('statusText').textContent = 'Done ✓';
+  logLine('All processing & AI analytics finished successfully!', 'l-ok');
+  renderProcessingLog();
+  renderErrorLog();
+  document.getElementById('processBtn').disabled = false;
+  document.getElementById('downloadBtn').style.display = 'inline-flex';
+  updateDashboardKPIs();
+}
+
+/* ============================================================================
+   CLEANED MASTER PREVIEW (With Search & Interactive Pagination)
+   ============================================================================ */
+let cleanCurrentPage = 1;
+let cleanPageSize = 50;
+const PREVIEW_CATEGORIES = [
+  { key: 'Enquiry', label: 'Enquiry' },
+  { key: 'Booking', label: 'Booking' },
+  { key: 'Retail', label: 'Retail' },
+  { key: 'Finance', label: 'Finance' },
+  { key: 'Accessories', label: 'Accessories' },
+  { key: 'RawData', label: 'Raw Data' }
+];
+let activePreviewTab = null;
+let cleanFilterDebounceTimer = null;
+
+function resetPreview() {
+  activePreviewTab = null;
+  cleanCurrentPage = 1;
+  document.getElementById('previewSection').style.display = 'none';
+  document.getElementById('previewTabs').innerHTML = '';
+  document.getElementById('previewCountLine').textContent = '';
+  document.querySelector('#previewTable thead').innerHTML = '';
+  document.querySelector('#previewTable tbody').innerHTML = '';
+}
+
+function selectPreviewTab(key) {
+  activePreviewTab = key;
+  cleanCurrentPage = 1;
+  renderPreview();
+}
+
+function debouncedFilterCleanPreviewTable() {
+  clearTimeout(cleanFilterDebounceTimer);
+  cleanFilterDebounceTimer = setTimeout(() => {
+    cleanCurrentPage = 1;
+    renderPreview();
+  }, 120);
+}
+
+function renderPreview() {
+  const counts = PREVIEW_CATEGORIES.map(c => ({ ...c, count: state.output[c.key].length }));
+  const totalRows = counts.reduce((s, c) => s + c.count, 0);
+  if (!totalRows) { document.getElementById('previewSection').style.display = 'none'; return; }
+
+  if (!activePreviewTab || !counts.some(c => c.key === activePreviewTab && c.count > 0)) {
+    const firstWithData = counts.find(c => c.count > 0);
+    activePreviewTab = firstWithData ? firstWithData.key : counts[0].key;
+  }
+
+  document.getElementById('previewTabs').innerHTML = counts.map(c =>
+    '<button type="button" class="' + (c.key === activePreviewTab ? 'accent' : 'secondary') + ' small" onclick="selectPreviewTab(\'' + c.key + '\')">' +
+    escapeHtml(c.label) + ' (' + c.count.toLocaleString() + ')</button>'
+  ).join('');
+
+  const { rows, columns } = sheetDataFor(activePreviewTab);
+  const searchVal = (document.getElementById('cleanSearchInput') ? document.getElementById('cleanSearchInput').value : '').toLowerCase().trim();
+  let filteredRows = rows;
+  if (searchVal) {
+    filteredRows = rows.filter(r => columns.some(c => String(r[c] || '').toLowerCase().includes(searchVal)));
+  }
+
+  const total = filteredRows.length;
+  const totalPages = cleanPageSize === 'All' ? 1 : Math.max(1, Math.ceil(total / cleanPageSize));
+  if (cleanCurrentPage > totalPages) cleanCurrentPage = totalPages;
+
+  const startIdx = cleanPageSize === 'All' ? 0 : (cleanCurrentPage - 1) * cleanPageSize;
+  const endIdx = cleanPageSize === 'All' ? total : Math.min(total, startIdx + cleanPageSize);
+  const shown = filteredRows.slice(startIdx, endIdx);
+
+  document.getElementById('previewCountLine').textContent =
+    'Showing ' + (total > 0 ? (startIdx + 1) : 0) + '–' + endIdx + ' of ' + total.toLocaleString() + ' row(s) in ' + activePreviewTab + (searchVal ? ' (filtered)' : '') + '.';
+
+  // Render pagination bar
+  const pBar = document.getElementById('cleanPaginationControls');
+  if (pBar) {
+    pBar.innerHTML = 
+      '<button type="button" class="secondary small" ' + (cleanCurrentPage <= 1 ? 'disabled' : '') + ' onclick="changeCleanPage(' + (cleanCurrentPage - 1) + ')">‹ Prev</button>' +
+      '<span style="padding:0 4px; font-weight:600;">' + cleanCurrentPage + ' / ' + totalPages + '</span>' +
+      '<button type="button" class="secondary small" ' + (cleanCurrentPage >= totalPages ? 'disabled' : '') + ' onclick="changeCleanPage(' + (cleanCurrentPage + 1) + ')">Next ›</button>' +
+      '<select class="page-select" onchange="changeCleanPageSize(this.value)">' +
+        [25, 50, 100, 250, 500].map(s => '<option value="' + s + '"' + (cleanPageSize == s ? ' selected' : '') + '>' + s + ' / page</option>').join('') +
+        '<option value="All"' + (cleanPageSize === 'All' ? ' selected' : '') + '>All</option>' +
+      '</select>';
+  }
+
+  const thead = document.querySelector('#previewTable thead');
+  const tbody = document.querySelector('#previewTable tbody');
+  thead.innerHTML = '<tr>' + columns.map(c => '<th>' + escapeHtml(c) + '</th>').join('') + '</tr>';
+  tbody.innerHTML = shown.map(r =>
+    '<tr>' + columns.map(c => '<td>' + escapeHtml(r[c] == null ? '' : String(r[c])) + '</td>').join('') + '</tr>'
+  ).join('');
+
+  document.getElementById('previewSection').style.display = 'block';
+}
+
+function changeCleanPage(p) {
+  cleanCurrentPage = p;
+  renderPreview();
+}
+function changeCleanPageSize(size) {
+  cleanPageSize = size === 'All' ? 'All' : parseInt(size, 10);
+  cleanCurrentPage = 1;
+  renderPreview();
+}
+
+function sheetDataFor(sectionKey) {
+  if (sectionKey === 'Enquiry') return { rows: state.output.Enquiry, columns: ENQUIRY_COLUMNS };
+  if (sectionKey === 'Booking') return { rows: state.output.Booking, columns: BOOKING_COLUMNS };
+  if (sectionKey === 'Retail') return { rows: state.output.Retail, columns: RETAIL_COLUMNS };
+  if (sectionKey === 'Finance') return { rows: state.output.Finance, columns: ['__SourceFile', '__SourceSheet'].concat(state.rawColumns.Finance) };
+  if (sectionKey === 'Accessories') return { rows: state.output.Accessories, columns: ['__SourceFile', '__SourceSheet'].concat(state.rawColumns.Accessories) };
+  if (sectionKey === 'RawData') return { rows: state.output.RawData, columns: ['__SourceFile', '__SourceSheet', '__DetectedType'].concat(state.rawColumns.RawData) };
+  if (sectionKey === 'ProcessingLog') return { rows: state.processingLog, columns: ['file', 'sheet', 'headerRow', 'reportType', 'confidence', 'sourceRows', 'imported', 'skippedEmpty', 'skippedRepeatedHeader', 'duplicates', 'missingCritical', 'note'] };
+  if (sectionKey === 'ErrorLog') return { rows: state.errorLog.length ? state.errorLog : [{ file: '', sheet: '', type: '', detail: 'No errors' }], columns: ['file', 'sheet', 'type', 'detail'] };
+  return { rows: [], columns: [] };
+}
+
+function csvEscape(v) {
+  const s = v == null ? '' : String(v);
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function rowsToCsv(rows, columns) {
+  const lines = [columns.join(',')];
+  rows.forEach(r => lines.push(columns.map(c => csvEscape(r[c])).join(',')));
+  return lines.join('\r\n');
+}
+
+function getSelectedOutputSections() {
+  return {
+    Enquiry: document.getElementById('outEnquiry').checked,
+    Booking: document.getElementById('outBooking').checked,
+    Retail: document.getElementById('outRetail').checked,
+    Finance: document.getElementById('outFinance').checked,
+    Accessories: document.getElementById('outAccessories').checked,
+    RawData: document.getElementById('outRawData').checked,
+    ProcessingLog: document.getElementById('outProcessingLog').checked,
+    ErrorLog: document.getElementById('outErrorLog').checked
+  };
+}
+
+async function downloadOutput() {
+  const btn = document.getElementById('downloadBtn');
+  const origText = btn ? btn.innerHTML : '';
+  const sections = getSelectedOutputSections();
+  const active = Object.keys(sections).filter(k => sections[k]);
+  if (!active.length) { alert('Select at least one section to export.'); return; }
+  const formatEl = document.querySelector('input[name="outFormat"]:checked');
+  const format = formatEl ? formatEl.value : 'xlsx';
+
+  if (format === 'xlsx') {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Building Excel Sheets…';
+    }
+    await yieldToBrowser(20);
+
+    const wb = XLSX.utils.book_new();
+    for (const key of active) {
+      const { rows, columns } = sheetDataFor(key);
+      const ws = fastJsonToSheet(rows, columns);
+      XLSX.utils.book_append_sheet(wb, ws, key.slice(0, 31));
+      await yieldToBrowser(0);
+    }
+    await fastDownloadWorkbook(wb, 'EBR_Master_Consolidated_Output.xlsx', btn, origText);
+  } else if (format === 'csv') {
+    active.forEach(key => {
+      const { rows, columns } = sheetDataFor(key);
+      const blob = new Blob([rowsToCsv(rows, columns)], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = key + '.csv'; a.click();
+    });
+  } else if (format === 'zip') {
+    const zip = new JSZip();
+    active.forEach(key => {
+      const { rows, columns } = sheetDataFor(key);
+      zip.file(key + '.csv', rowsToCsv(rows, columns));
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'EBR_Consolidated_CSVs.zip'; a.click();
+  }
+}
+
+function renderProcessingLog() {
+  const cols = ['File', 'Sheet', 'Header Row', 'Report Type', 'Confidence', 'Source Rows', 'Imported', 'Skipped (empty)', 'Skipped (repeated header)', 'Duplicates', 'Missing Critical', 'Note'];
+  const thead = document.querySelector('#processingLogTable thead');
+  const tbody = document.querySelector('#processingLogTable tbody');
+  thead.innerHTML = '<tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr>';
+  tbody.innerHTML = state.processingLog.map((r, rIdx) => {
+    const typeTag = r.reportType === 'UNKNOWN_REPORT' ? '<span class="tag tag-err">UNKNOWN</span>' :
+      (r.reportType === 'Finance' || r.reportType === 'Accessories') ? '<span class="tag tag-warn">' + r.reportType + '</span>' :
+      '<span class="tag tag-ok">' + r.reportType + '</span>';
+
+    const sourcePill = `<span class="stat-pill clickable stat-ok" title="Click to view all raw source rows (${r.sourceRows})" onclick="openLogDataModal(${rIdx}, 'sourceRows')">${r.sourceRows}</span>`;
+    const importedPill = `<span class="stat-pill clickable stat-ok" title="Click to view imported clean records (${r.imported})" onclick="openLogDataModal(${rIdx}, 'imported')">${r.imported}</span>`;
+    const emptyPill = `<span class="stat-pill clickable ${r.skippedEmpty > 0 ? 'stat-warn' : 'stat-muted'}" title="Click to view skipped empty rows (${r.skippedEmpty})" onclick="openLogDataModal(${rIdx}, 'skippedEmpty')">${r.skippedEmpty}</span>`;
+    const repeatedPill = `<span class="stat-pill clickable ${(r.skippedRepeatedHeader || 0) > 0 ? 'stat-warn' : 'stat-muted'}" title="Click to view skipped repeated headers (${r.skippedRepeatedHeader || 0})" onclick="openLogDataModal(${rIdx}, 'skippedRepeated')">${r.skippedRepeatedHeader || 0}</span>`;
+    const dupPill = `<span class="stat-pill clickable ${r.duplicates > 0 ? 'stat-warn' : 'stat-muted'}" title="Click to view duplicate rows (${r.duplicates})" onclick="openLogDataModal(${rIdx}, 'duplicates')">${r.duplicates}</span>`;
+    const missingPill = `<span class="stat-pill clickable ${r.missingCritical > 0 ? 'stat-err' : 'stat-muted'}" title="Click to view records missing critical fields (${r.missingCritical})" onclick="openLogDataModal(${rIdx}, 'missingCritical')">${r.missingCritical}</span>`;
+    const notePill = r.note ? `<span class="note-pill clickable" title="Click to view full notes & details" onclick="openLogDataModal(${rIdx}, 'note')">${escapeHtml(r.note)}</span>` : '<span style="color:#94a3b8;font-size:11px;">—</span>';
+
+    return '<tr><td>' + escapeHtml(r.file) + '</td><td>' + escapeHtml(r.sheet) + '</td><td>' + (r.headerRow ?? '') + '</td>' +
+      '<td>' + typeTag + '</td><td>' + r.confidence + '%</td>' +
+      '<td>' + sourcePill + '</td>' +
+      '<td>' + importedPill + '</td>' +
+      '<td>' + emptyPill + '</td>' +
+      '<td>' + repeatedPill + '</td>' +
+      '<td>' + dupPill + '</td>' +
+      '<td>' + missingPill + '</td>' +
+      '<td>' + notePill + '</td></tr>';
+  }).join('');
+  document.getElementById('logSection').style.display = 'block';
+}
+
+function renderErrorLog() {
+  const cols = ['File', 'Sheet', 'Type', 'Detail'];
+  const thead = document.querySelector('#errorLogTable thead');
+  const tbody = document.querySelector('#errorLogTable tbody');
+  thead.innerHTML = '<tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr>';
+  if (!state.errorLog.length) {
+    tbody.innerHTML = '<tr><td colspan="4">No errors or review items.</td></tr>';
+  } else {
+    tbody.innerHTML = state.errorLog.map(e => '<tr><td>' + escapeHtml(e.file) + '</td><td>' + escapeHtml(e.sheet) +
+      '</td><td><span class="tag tag-warn">' + escapeHtml(e.type) + '</span></td><td>' + escapeHtml(e.detail) + '</td></tr>').join('');
+  }
+  document.getElementById('errorSection').style.display = 'block';
+}
+
+function resetLogSections() {
+  const placeholder = '<tr><td>Run the pipeline to populate this log.</td></tr>';
+  document.querySelector('#processingLogTable thead').innerHTML = '';
+  document.querySelector('#processingLogTable tbody').innerHTML = placeholder;
+  document.querySelector('#errorLogTable thead').innerHTML = '';
+  document.querySelector('#errorLogTable tbody').innerHTML = placeholder;
+}
+
+function toggleCollapsible(sectionId) {
+  const body = document.getElementById(sectionId + 'Body');
+  const header = document.querySelector('#' + sectionId + ' > h2.section-title');
+  if (!body) return;
+  const willOpen = body.style.display === 'none';
+  body.style.display = willOpen ? '' : 'none';
+  if (header) header.classList.toggle('open', willOpen);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ============================================================================
+   IN-LINE SHEET VIEWER / EDITOR MODAL LOGIC
+   ============================================================================ */
+let sheetViewState = null;
+let sheetViewKey = null;
+
+async function getRawSheetGrid(fileName, sheetName) {
+  const files = await getWorkbookFiles();
+  const f = files.find(x => x.name === fileName);
+  if (!f) return null;
+  const wb = getWorkbookFull(f);
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return null;
+  return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+}
+
+async function viewSheetData(btn) {
+  const tr = btn.closest('tr');
+  const key = tr && tr.dataset.tabKey ? tr.dataset.tabKey : '||';
+  const sep = key.indexOf('||');
+  const fileName = sep >= 0 ? key.slice(0, sep) : key;
+  const sheetName = sep >= 0 ? key.slice(sep + 2) : '';
+  sheetViewKey = fileName + '||' + sheetName;
+
+  document.getElementById('sheetViewTitle').textContent = sheetName || '(unnamed sheet)';
+  document.getElementById('sheetViewSubtitle').textContent = fileName || '(no source file)';
+  document.getElementById('sheetViewOverlay').style.display = 'flex';
+  document.getElementById('sheetViewLoading').style.display = 'block';
+  document.getElementById('sheetViewEmpty').style.display = 'none';
+  document.getElementById('sheetViewContent').style.display = 'none';
+  document.getElementById('sheetViewSavedMsg').classList.remove('show');
+
+  try {
+    if (sheetEditCache.has(sheetViewKey)) {
+      const cached = sheetEditCache.get(sheetViewKey);
+      sheetViewState = { columns: [...cached.columns], rows: cached.rows.map(r => [...r]) };
+    } else {
+      if (!fileName || !sheetName) {
+        sheetViewState = null;
+        document.getElementById('sheetViewLoading').style.display = 'none';
+        document.getElementById('sheetViewEmpty').textContent = 'No file linked yet.';
+        document.getElementById('sheetViewEmpty').style.display = 'block';
+        return;
+      }
+      const grid = await getRawSheetGrid(fileName, sheetName);
+      if (!grid || !grid.length) {
+        sheetViewState = null;
+        document.getElementById('sheetViewLoading').style.display = 'none';
+        document.getElementById('sheetViewEmpty').textContent = 'This sheet contains no data.';
+        document.getElementById('sheetViewEmpty').style.display = 'block';
+        return;
+      }
+      let headerRowIndex = 0;
+      const hInfo = detectHeaderRow(grid, 15);
+      if (hInfo && hInfo.index >= 0 && hInfo.confidence >= 35) {
+        headerRowIndex = hInfo.index;
+      }
+      const headerRow = grid[headerRowIndex] || [];
+      const colCount = grid.reduce((m, r) => Math.max(m, r.length), headerRow.length);
+      const columns = [];
+      for (let j = 0; j < colCount; j++) {
+        const h = headerRow[j];
+        columns.push((h === '' || h == null) ? ('Column ' + (j + 1)) : String(h));
+      }
+      const rows = grid.slice(headerRowIndex + 1).map(r => {
+        const row = [];
+        for (let j = 0; j < colCount; j++) row.push(r[j] == null ? '' : String(r[j]));
+        return row;
+      });
+      sheetViewState = { columns, rows };
+    }
+
+    document.getElementById('sheetViewLoading').style.display = 'none';
+    if (!sheetViewState.columns.length) {
+      document.getElementById('sheetViewEmpty').textContent = 'This sheet has no columns.';
+      document.getElementById('sheetViewEmpty').style.display = 'block';
+      return;
+    }
+    document.getElementById('sheetViewContent').style.display = 'block';
+    renderSheetViewTable();
+  } catch (e) {
+    document.getElementById('sheetViewLoading').style.display = 'none';
+    document.getElementById('sheetViewEmpty').textContent = 'Error loading sheet: ' + e.message;
+    document.getElementById('sheetViewEmpty').style.display = 'block';
+  }
+}
+
+function renderSheetViewTable() {
+  if (!sheetViewState) return;
+  const thead = document.querySelector('#sheetViewTable thead');
+  const tbody = document.querySelector('#sheetViewTable tbody');
+
+  thead.innerHTML = '<tr><th class="sv-rownum-col">#</th>' +
+    sheetViewState.columns.map((c, j) =>
+      '<th><div class="sv-th-wrap">' +
+        '<input type="text" class="sv-editable sv-th-editable" data-col="' + j + '" value="' + escapeHtml(c) + '"/>' +
+        '<button type="button" class="sv-del-col" data-col="' + j + '" title="Delete column">✕</button>' +
+      '</div></th>'
+    ).join('') + '<th style="width:40px;"></th></tr>';
+
+  tbody.innerHTML = sheetViewState.rows.map((r, i) =>
+    '<tr data-row="' + i + '">' +
+      '<td class="sv-rownum-col">' + (i + 1) + '</td>' +
+      r.map((v, j) => '<td><input type="text" class="sv-editable" data-row="' + i + '" data-col="' + j + '" value="' + escapeHtml(v) + '"/></td>').join('') +
+      '<td><button type="button" class="sv-del-row" data-row="' + i + '" title="Delete row">🗑</button></td>' +
+    '</tr>'
+  ).join('');
+}
+
+function onSheetViewTableInput(e) {
+  if (!sheetViewState) return;
+  const t = e.target;
+  if (!t.classList || !t.classList.contains('sv-editable')) return;
+  const col = parseInt(t.dataset.col, 10);
+  if (t.classList.contains('sv-th-editable')) {
+    sheetViewState.columns[col] = t.value;
+  } else {
+    const row = parseInt(t.dataset.row, 10);
+    if (sheetViewState.rows[row]) sheetViewState.rows[row][col] = t.value;
+  }
+}
+
+function onSheetViewTableClick(e) {
+  const delCol = e.target.closest('.sv-del-col');
+  if (delCol) { deleteSheetViewColumn(parseInt(delCol.dataset.col, 10)); return; }
+  const delRow = e.target.closest('.sv-del-row');
+  if (delRow) { deleteSheetViewRow(parseInt(delRow.dataset.row, 10)); return; }
+}
+
+function deleteSheetViewColumn(colIndex) {
+  if (!sheetViewState) return;
+  if (sheetViewState.columns.length <= 1) { alert('At least one column must remain.'); return; }
+  const colName = sheetViewState.columns[colIndex];
+  if (!confirm('Delete column "' + colName + '"?')) return;
+  sheetViewState.columns.splice(colIndex, 1);
+  sheetViewState.rows.forEach(r => r.splice(colIndex, 1));
+  renderSheetViewTable();
+}
+
+function deleteSheetViewRow(rowIndex) {
+  if (!sheetViewState) return;
+  if (!confirm('Delete row ' + (rowIndex + 1) + '?')) return;
+  sheetViewState.rows.splice(rowIndex, 1);
+  renderSheetViewTable();
+}
+
+function addSheetViewRow() {
+  if (!sheetViewState) return;
+  sheetViewState.rows.push(sheetViewState.columns.map(() => ''));
+  renderSheetViewTable();
+  const scroll = document.getElementById('sheetViewScroll');
+  scroll.scrollTop = scroll.scrollHeight;
+}
+
+function saveSheetViewChanges() {
+  if (!sheetViewState || !sheetViewKey) return;
+  sheetEditCache.set(sheetViewKey, {
+    columns: [...sheetViewState.columns],
+    rows: sheetViewState.rows.map(r => [...r])
+  });
+  const msg = document.getElementById('sheetViewSavedMsg');
+  msg.textContent = 'Saved ✓ (' + sheetViewState.rows.length + ' rows)';
+  msg.classList.add('show');
+  setTimeout(() => msg.classList.remove('show'), 2200);
+}
+
+function closeSheetViewModal() {
+  document.getElementById('sheetViewOverlay').style.display = 'none';
+  sheetViewState = null;
+  sheetViewKey = null;
+}
+
+document.getElementById('sheetViewTable').addEventListener('input', onSheetViewTableInput);
+document.getElementById('sheetViewTable').addEventListener('click', onSheetViewTableClick);
+
+/* ============================================================================
+   PROCESSING LOG SUBSET DRILL-DOWN & EXPORT MODAL LOGIC
+   ============================================================================ */
+let activeLogModalState = null;
+
+function openLogDataModal(logIdx, subsetType) {
+  const rec = state.processingLog[logIdx];
+  if (!rec) return;
+
+  let title = '';
+  let subtitle = `${rec.file} ➔ ${rec.sheet} (${rec.reportType})`;
+  let columns = [];
+  let rows = [];
+
+  const rawHeaders = (rec.rawHeaders && rec.rawHeaders.length) ? rec.rawHeaders : [];
+
+  if (subsetType === 'sourceRows') {
+    title = `Source Data Rows (${(rec.sourceRows || 0).toLocaleString()})`;
+    columns = rawHeaders.length ? [...rawHeaders] : (rec.sourceDataRows[0] ? rec.sourceDataRows[0].map((_, i) => `Col ${i+1}`) : ['Data']);
+    rows = rec.sourceDataRows || [];
+  } else if (subsetType === 'imported') {
+    title = `Imported Clean Records (${(rec.imported || 0).toLocaleString()})`;
+    columns = (rec.importedColumns && rec.importedColumns.length) ? [...rec.importedColumns] :
+      (rec.importedRows[0] ? Object.keys(rec.importedRows[0]) : ['Imported Field']);
+    rows = rec.importedRows || [];
+  } else if (subsetType === 'skippedEmpty') {
+    title = `Skipped Empty Rows (${(rec.skippedEmpty || 0).toLocaleString()})`;
+    columns = rawHeaders.length ? [...rawHeaders] : ['Col 1', 'Col 2', 'Col 3', 'Col 4'];
+    rows = rec.skippedEmptyRows || [];
+  } else if (subsetType === 'skippedRepeated') {
+    title = `Skipped Repeated Header Rows (${(rec.skippedRepeatedHeader || 0).toLocaleString()})`;
+    columns = rawHeaders.length ? [...rawHeaders] : ['Col 1', 'Col 2', 'Col 3', 'Col 4'];
+    rows = rec.skippedRepeatedHeaderRows || [];
+  } else if (subsetType === 'duplicates') {
+    title = `Duplicate Records (${(rec.duplicates || 0).toLocaleString()})`;
+    columns = rawHeaders.length ? [...rawHeaders] : ['Col 1', 'Col 2', 'Col 3'];
+    rows = rec.duplicateRows || [];
+  } else if (subsetType === 'missingCritical') {
+    title = `Records Missing Critical Info (${(rec.missingCritical || 0).toLocaleString()})`;
+    columns = rawHeaders.length ? [...rawHeaders] : ['Col 1', 'Col 2', 'Col 3'];
+    rows = rec.missingCriticalRows || [];
+  } else if (subsetType === 'note') {
+    title = `Processing Note & Classification Details`;
+    columns = ['Parameter', 'Details / Raw Value'];
+    rows = [
+      ['Source File', rec.file],
+      ['Source Sheet', rec.sheet],
+      ['Detected Report Type', rec.reportType],
+      ['Classification Confidence', rec.confidence + '%'],
+      ['Header Row Detected At', rec.headerRow != null ? ('Row ' + rec.headerRow) : 'None'],
+      ['Total Source Data Rows', rec.sourceRows],
+      ['Successfully Imported', rec.imported],
+      ['Skipped Empty Rows', rec.skippedEmpty],
+      ['Skipped Repeated Headers', rec.skippedRepeatedHeader || 0],
+      ['Duplicate Rows', rec.duplicates],
+      ['Missing Critical Fields', rec.missingCritical],
+      ['Pipeline Note / Reason', rec.note || 'None']
+    ];
+  }
+
+  let gridRows = [];
+  if (rows.length > 0 && !Array.isArray(rows[0]) && typeof rows[0] === 'object') {
+    gridRows = rows.map(obj => columns.map(c => obj[c] == null ? '' : obj[c]));
+  } else {
+    gridRows = rows.map(r => {
+      if (Array.isArray(r)) return r;
+      if (typeof r === 'object' && r !== null) return columns.map(c => r[c] == null ? '' : r[c]);
+      return [r];
+    });
+  }
+
+  activeLogModalState = {
+    title,
+    subtitle,
+    fileName: rec.file,
+    sheetName: rec.sheet,
+    subsetType,
+    columns,
+    allRows: gridRows,
+    filteredRows: gridRows
+  };
+
+  document.getElementById('logSubsetModalTitle').textContent = title;
+  document.getElementById('logSubsetModalSubtitle').textContent = subtitle;
+  const searchInput = document.getElementById('logSubsetSearchInput');
+  if (searchInput) searchInput.value = '';
+
+  renderLogSubsetTable();
+  document.getElementById('logSubsetOverlay').style.display = 'flex';
+}
+
+function filterLogSubsetTable() {
+  if (!activeLogModalState) return;
+  const q = (document.getElementById('logSubsetSearchInput').value || '').toLowerCase().trim();
+  if (!q) {
+    activeLogModalState.filteredRows = activeLogModalState.allRows;
+  } else {
+    activeLogModalState.filteredRows = activeLogModalState.allRows.filter(row => {
+      return row.some(cell => String(cell == null ? '' : cell).toLowerCase().includes(q));
+    });
+  }
+  renderLogSubsetTable();
+}
+
+function renderLogSubsetTable() {
+  if (!activeLogModalState) return;
+  const cols = activeLogModalState.columns;
+  const rows = activeLogModalState.filteredRows;
+  const totalCount = activeLogModalState.allRows.length;
+
+  const countLine = document.getElementById('logSubsetCountLine');
+  if (countLine) {
+    countLine.innerHTML = `Showing <strong style="color:var(--accent);">${rows.length.toLocaleString()}</strong> of <strong>${totalCount.toLocaleString()}</strong> records`;
+  }
+
+  const thead = document.querySelector('#logSubsetTable thead');
+  const tbody = document.querySelector('#logSubsetTable tbody');
+
+  thead.innerHTML = '<tr><th style="width:50px;text-align:center;">#</th>' + cols.map(c => '<th>' + escapeHtml(c) + '</th>').join('') + '</tr>';
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${cols.length + 1}" style="text-align:center;padding:36px;color:#94a3b8;font-size:13px;">No records available for this subset (0 rows).</td></tr>`;
+    return;
+  }
+
+  const maxRender = Math.min(rows.length, 500);
+  let html = '';
+  for (let i = 0; i < maxRender; i++) {
+    const row = rows[i];
+    html += `<tr><td style="text-align:center;color:#94a3b8;font-family:var(--mono);font-size:11px;">${i + 1}</td>`;
+    for (let cIdx = 0; cIdx < cols.length; cIdx++) {
+      const cellVal = row[cIdx] == null ? '' : row[cIdx];
+      html += `<td>${escapeHtml(cellVal)}</td>`;
+    }
+    html += '</tr>';
+  }
+  if (rows.length > 500) {
+    html += `<tr><td colspan="${cols.length + 1}" style="text-align:center;padding:12px;background:#f8fafc;color:#64748b;font-weight:600;font-size:12px;">+ ${(rows.length - 500).toLocaleString()} more rows in memory (Download to view entire dataset)</td></tr>`;
+  }
+  tbody.innerHTML = html;
+}
+
+async function downloadActiveModalSubset(format) {
+  if (!activeLogModalState) return;
+  const { title, fileName, sheetName, subsetType, columns, filteredRows, allRows } = activeLogModalState;
+  const dataToExport = filteredRows.length > 0 ? filteredRows : allRows;
+
+  if (!dataToExport.length) {
+    alert('No data rows to export in this subset.');
+    return;
+  }
+
+  const safeFilePrefix = (fileName.replace(/\.[^/.]+$/, '') + '_' + sheetName + '_' + subsetType).replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  if (format === 'xlsx') {
+    const btn = event ? (event.target.closest('button') || event.target) : null;
+    const origText = btn ? btn.innerHTML : '';
+    const wb = XLSX.utils.book_new();
+    const aoa = [columns, ...dataToExport];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    XLSX.utils.book_append_sheet(wb, ws, subsetType.slice(0, 31));
+    await fastDownloadWorkbook(wb, `${safeFilePrefix}.xlsx`, btn, origText);
+  } else if (format === 'csv') {
+    const aoa = [columns, ...dataToExport];
+    const csvContent = aoa.map(row => row.map(cell => {
+      let s = String(cell == null ? '' : cell);
+      if (s.includes('"') || s.includes(',') || s.includes('\n') || s.includes('\r')) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }).join(',')).join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${safeFilePrefix}.csv`;
+    a.click();
+  }
+}
+
+function closeLogSubsetModal() {
+  const overlay = document.getElementById('logSubsetOverlay');
+  if (overlay) overlay.style.display = 'none';
+  activeLogModalState = null;
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (document.getElementById('sheetViewOverlay') && document.getElementById('sheetViewOverlay').style.display === 'flex') {
+      closeSheetViewModal();
+    }
+    if (document.getElementById('logSubsetOverlay') && document.getElementById('logSubsetOverlay').style.display === 'flex') {
+      closeLogSubsetModal();
+    }
+  }
+});
+
+async function checkBackendEngine() {
+  try {
+    const res = await fetch('http://127.0.0.1:8000/api/reports');
+    if (res.ok) {
+      const badge = document.getElementById('engineBadge');
+      if (badge) {
+        badge.innerHTML = '🚀 Big-Data Server Engine Connected (50L Rows)';
+        badge.style.background = 'rgba(79,70,229,.4)';
+        badge.style.borderColor = '#818cf8';
+      }
+    }
+  } catch (e) {}
+}
+window.addEventListener('DOMContentLoaded', checkBackendEngine);
+</script>
+</body>
+</html>

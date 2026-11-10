@@ -1,0 +1,12 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Local SQLite database & WAL files (contains runtime/customer data)
+*.db
+*.db-shm
+*.db-wal
+
+# Runtime directories
+uploads/
+exports/
