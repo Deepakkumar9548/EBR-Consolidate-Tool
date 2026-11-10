@@ -331,8 +331,10 @@ class AppRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path
         query = parse_qs(parsed.query)
 
-        if path == '/':
-            html_file = os.path.join(BASE_DIR, "ebr_zip_converter_modern (2).html")
+        if path in ('/', '/index.html'):
+            html_file = os.path.join(BASE_DIR, "index.html")
+            if not os.path.exists(html_file):
+                html_file = os.path.join(BASE_DIR, "ebr_zip_converter_modern (2).html")
             if os.path.exists(html_file):
                 with open(html_file, 'rb') as f:
                     content = f.read()

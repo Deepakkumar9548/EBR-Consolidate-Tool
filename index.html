@@ -2719,6 +2719,11 @@ document.addEventListener('keydown', function(e) {
 });
 
 async function checkBackendEngine() {
+  // Only probe the local Python engine when running locally (avoids mixed-content/errors on static hosts like Netlify)
+  const host = window.location.hostname;
+  if (window.location.protocol !== 'file:' && host !== '127.0.0.1' && host !== 'localhost' && host !== '') {
+    return;
+  }
   try {
     const res = await fetch('http://127.0.0.1:8000/api/reports');
     if (res.ok) {

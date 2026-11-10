@@ -8,9 +8,10 @@ An AI-assisted raw data consolidation and master converter dashboard for automot
 
 | File | Description |
 | :--- | :--- |
+| [`index.html`](index.html) | Complete frontend UI and client-side parser/standardizer using SheetJS (`xlsx`) and `JSZip` (Netlify/web entry point). |
+| [`netlify.toml`](netlify.toml) | Netlify static deployment config (`publish = "."` and SPA fallback redirect). |
 | [`start_app.bat`](start_app.bat) | Windows launcher that opens `http://127.0.0.1:8000` and starts `server.py`. |
 | [`server.py`](server.py) | Python HTTP server (`http.server`) + `openpyxl` read-only chunk-streaming pipeline backed by SQLite WAL (`ebr_enterprise.db`). |
-| [`ebr_zip_converter_modern (2).html`](ebr_zip_converter_modern%20(2).html) | Complete frontend UI and client-side parser/standardizer using SheetJS (`xlsx`) and `JSZip`. |
 | [`.gitignore`](.gitignore) | Excludes runtime SQLite databases (`*.db`, `*.db-shm`, `*.db-wal`), `__pycache__/`, `uploads/`, and `exports/`. |
 
 ---
@@ -46,7 +47,7 @@ An AI-assisted raw data consolidation and master converter dashboard for automot
 Runs locally on `http://127.0.0.1:8000` and streams large `.xlsx` files in **50,000-row chunks** into SQLite (`ebr_enterprise.db`) with checkpoint tracking (`jobs`, `job_checkpoints`, `master_data`, `error_data`).
 
 ### REST API Endpoints
-- `GET /` — Serves `ebr_zip_converter_modern (2).html`.
+- `GET /` (or `/index.html`) — Serves `index.html`.
 - `POST /api/upload` — Accepts `multipart/form-data` Excel upload and starts a background chunk-processing thread.
 - `GET /api/jobs/<job_id>/status` — Returns job progress, processed row counts, and chunk status.
 - `GET /api/records?job_id=...&category=...&page=1&limit=50&search=...` — Paginated record query & search.
@@ -56,7 +57,7 @@ Runs locally on `http://127.0.0.1:8000` and streams large `.xlsx` files in **50,
 
 ## Quick Start
 
-### Option 1: Run with Local Python Backend (Recommended)
+### Option 1: Run with Local Python Backend (Recommended for 50L+ Rows)
 1. Ensure **Python 3** and `openpyxl` are installed:
    ```powershell
    pip install openpyxl
@@ -68,4 +69,8 @@ Runs locally on `http://127.0.0.1:8000` and streams large `.xlsx` files in **50,
 3. Open `http://127.0.0.1:8000` in your browser.
 
 ### Option 2: Standalone Browser Mode
-Open [`ebr_zip_converter_modern (2).html`](ebr_zip_converter_modern%20(2).html) directly in Chrome/Edge (requires internet access for the CDN-hosted `JSZip`, `SheetJS`, and Google Fonts scripts). All browser-mode processing stays locally in browser memory.
+Open [`index.html`](index.html) directly in Chrome/Edge (requires internet access for the CDN-hosted `JSZip`, `SheetJS`, and Google Fonts scripts). All browser-mode processing stays locally in browser memory.
+
+### Option 3: Deploy on Netlify (Static Site)
+- Connect the GitHub repository to Netlify (leave **Build command** empty and set **Publish directory** to `.` — pre-configured via [`netlify.toml`](netlify.toml)), or drag-and-drop the project folder into Netlify Drop.
+- Note: On Netlify static hosting, the app runs 100% client-side in browser memory (`server.py` is only used when running locally).
